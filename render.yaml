@@ -28,7 +28,7 @@ services:
       - key: CLOUDINARY_CLOUD_NAME
         value: uupnnr3x
       - key: CLOUDINARY_API_KEY
-        sync: false
+        value: "177175651834519"
       - key: ADMIN_PASSWORD
         sync: false
       - key: PHOTOGRAPHER_PASSWORD
