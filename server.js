@@ -1,4 +1,30 @@
 require('dotenv').config();
+
+// ------------------------------------------------------------------
+// Configuration Cloudinary tolérante :
+// - CLOUDINARY_URL complet (cloudinary://CLE:SECRET@NOM), éventuellement précédé de "CLOUDINARY_URL="
+// - ou CLOUDINARY_CLOUD_NAME + CLOUDINARY_API_KEY + CLOUDINARY_API_SECRET
+// - ou CLOUDINARY_URL contenant seulement le secret, avec NOM et CLE dans les deux autres variables
+// ------------------------------------------------------------------
+(function normaliserCloudinary() {
+  const clean = v => String(v || '').trim().replace(/^["']|["']$/g, '').trim();
+  let url = clean(process.env.CLOUDINARY_URL).replace(/^CLOUDINARY_URL\s*=\s*/i, '');
+  const name = clean(process.env.CLOUDINARY_CLOUD_NAME);
+  const key = clean(process.env.CLOUDINARY_API_KEY);
+  let secret = clean(process.env.CLOUDINARY_API_SECRET);
+  if (!/^cloudinary:\/\//.test(url)) {
+    if (url && !secret && !/[:@\/\s]/.test(url)) secret = url; // seul le secret a été collé
+    if (name && key && secret) url = `cloudinary://${key}:${secret}@${name}`;
+  }
+  if (!url) { delete process.env.CLOUDINARY_URL; return; }
+  if (!/^cloudinary:\/\/\d+:[^@\s]+@[\w-]+$/.test(url)) {
+    console.error('✖ Configuration Cloudinary invalide.');
+    console.error('  Attendu : CLOUDINARY_URL = cloudinary://CLE_API:SECRET@NOM_DU_CLOUD');
+    console.error('  ou bien : CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY et CLOUDINARY_API_SECRET.');
+    process.exit(1);
+  }
+  process.env.CLOUDINARY_URL = url;
+})();
 const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
