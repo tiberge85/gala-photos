@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Diaporama</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700&display=swap">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    html, body { height: 100%; overflow: hidden; background: #000; cursor: none; }
+    .stage { position: fixed; inset: 0; }
+    .slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1.2s ease; }
+    .slide.on { opacity: 1; }
+    .slide .bg { position: absolute; inset: -40px; background-size: cover; background-position: center; filter: blur(30px) brightness(.45); transform: scale(1.1); }
+    .slide img { position: absolute; inset: 0; margin: auto; max-width: 100%; max-height: calc(100% - 120px); object-fit: contain; top: 0; bottom: 120px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+    .credit { position: absolute; top: 24px; right: 28px; background: rgba(0,0,0,.55); padding: 8px 14px; border-radius: 999px; font-size: 18px; }
+    .credit.pro { background: var(--accent); color: #1b1203; font-weight: 700; }
+    .bar {
+      position: fixed; left: 0; right: 0; bottom: 0; height: 120px; display: flex; align-items: center; gap: 22px;
+      padding: 0 32px; background: linear-gradient(transparent, rgba(0,0,0,.85) 35%);
+    }
+    .bar .qr { width: 92px; height: 92px; background: #fff; border-radius: 10px; padding: 6px; }
+    .bar h2 { font-family: var(--serif); margin: 0; font-size: 34px; }
+    .bar p { margin: 2px 0 0; color: var(--accent); font-size: 20px; font-weight: 600; }
+    .bar .url { margin-left: auto; color: var(--muted); font-size: 18px; }
+    .waiting { position: fixed; inset: 0; display: grid; place-items: center; text-align: center; padding-bottom: 120px; }
+    .waiting h1 { font-family: var(--serif); font-size: 64px; margin: 0; }
+    .waiting p { color: var(--muted); font-size: 24px; }
+    .hint { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.6); padding: 8px 14px; border-radius: 10px; font-size: 14px; transition: opacity .5s; }
+  </style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="slide" id="s0"><div class="bg"></div><img alt=""><span class="credit"></span></div>
+    <div class="slide" id="s1"><div class="bg"></div><img alt=""><span class="credit"></span></div>
+  </div>
+  <div class="waiting" id="waiting">
+    <div><h1 data-event-name>Gala</h1><p>Les photos du photographe apparaîtront ici</p></div>
+  </div>
+  <div class="bar">
+    <img class="qr" id="qr" alt="QR code">
+    <div>
+      <h2 data-event-name>Gala</h2>
+      <p>Scannez, faites un selfie, retrouvez vos photos</p>
+    </div>
+    <div class="url" id="url"></div>
+  </div>
+  <div class="hint" id="hint">Cliquez pour passer en plein écran</div>
+
+  <script src="/js/common.js"></script>
+  <script>
+  (async () => {
+    const { $ } = Gala;
+    const cfg = await Gala.loadConfig();
+    const params = new URLSearchParams(location.search);
+    const DURATION = Math.max(3, Number(params.get('d')) || 7) * 1000;
+        $('#qr').src = '/api/qr.svg?path=/';
+    $('#url').textContent = cfg.publicUrl.replace(/^https?:\/\//, '');
+
+    let items = [], version = 0, known = new Set(), fresh = [], cycle = [], cur = 0, started = false;
+
+    const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+    async function poll() {
+      try {
+        const data = await Gala.api(`/api/photos?v=${version}`, { role: cfg.publicGallery ? undefined : 'admin' });
+        if (data.unchanged) return;
+        version = data.version;
+        const list = data.items;
+        const firstLoad = !items.length && !known.size;
+        for (const p of list) {
+          if (!known.has(p.id)) { known.add(p.id); if (!firstLoad) fresh.push(p); }
+        }
+        items = list;
+        const ids = new Set(list.map(p => p.id));
+        fresh = fresh.filter(p => ids.has(p.id));
+        cycle = cycle.filter(p => ids.has(p.id));
+        if (!started && items.length) { started = true; next(); }
+        $('#waiting').hidden = items.length > 0;
+      } catch {}
+    }
+
+    function pick() {
+      if (fresh.length) return fresh.shift(); // les nouvelles photos passent en priorité
+      if (!cycle.length) cycle = shuffle(items.slice());
+      return cycle.shift();
+    }
+
+    function preload(url) {
+      return new Promise(res => { const i = new Image(); i.onload = () => res(true); i.onerror = () => res(false); i.src = url; });
+    }
+
+    async function next() {
+      if (!items.length) { started = false; $('#waiting').hidden = false; return; }
+      const p = pick();
+      if (!p) return setTimeout(next, DURATION);
+      const ok = await preload(p.url);
+      if (ok) {
+        cur = 1 - cur;
+        const s = $('#s' + cur);
+        s.querySelector('.bg').style.backgroundImage = `url("${p.thumb}")`;
+        s.querySelector('img').src = p.url;
+        const credit = s.querySelector('.credit');
+        credit.textContent = p.album || ''; credit.hidden = !p.album;
+        s.classList.add('on');
+        $('#s' + (1 - cur)).classList.remove('on');
+      }
+      setTimeout(next, ok ? DURATION : 300);
+    }
+
+    document.addEventListener('click', () => {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+    });
+    setTimeout(() => { $('#hint').style.opacity = 0; }, 6000);
+
+    await poll();
+    setInterval(poll, 8000);
+  })();
+  </script>
+</body>
+</html>

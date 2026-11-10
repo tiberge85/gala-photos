@@ -1,0 +1,24 @@
+{
+  "name": "gala-photos",
+  "version": "1.0.0",
+  "description": "Partage de photos d'événement par QR code : envoi des invités, modération, photos du photographe, diaporama en direct.",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@vladmandic/face-api": "^1.7.15",
+    "archiver": "^8.0.0",
+    "cloudinary": "^2.5.1",
+    "compression": "^1.7.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "multer": "^2.5.0",
+    "qrcode": "^1.5.4"
+  }
+}

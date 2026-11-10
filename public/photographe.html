@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Photographe</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700&display=swap">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="hero narrow" style="padding-bottom:6px">
+    <span class="kicker">Espace photographe</span>
+    <h1 data-event-name style="font-size:30px">Gala</h1>
+  </header>
+
+  <form id="login" class="card narrow mt" hidden>
+    <label class="label" for="password">Mot de passe photographe</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <button class="btn btn-primary btn-block mt">Se connecter</button>
+  </form>
+
+  <main id="app" class="narrow" hidden>
+    <div id="modelState" class="notice warn">Chargement de la reconnaissance faciale… (une seule fois, environ 12 Mo)</div>
+
+    <section class="card mt">
+      <label class="label" for="album">Album</label>
+      <input id="album" type="text" list="albumList" value="" maxlength="40" placeholder="Ex. : Cérémonie">
+      <datalist id="albumList"></datalist>
+
+      <label class="label mt-l" for="quality">Qualité d’envoi</label>
+      <select id="quality">
+        <option value="3000|0.9">Haute (3000 px) — recommandé</option>
+        <option value="2400|0.85">Moyenne (2400 px) — connexion lente</option>
+        <option value="0|0">Fichier d’origine (max. 12 Mo)</option>
+      </select>
+
+      <label class="row mt" style="gap:8px;cursor:pointer">
+        <input type="checkbox" id="tiles" checked>
+        <span class="small">Détection renforcée pour les photos de groupe (plus lent, trouve les petits visages)</span>
+      </label>
+
+      <div id="drop" class="drop mt-l">
+        <strong>Glissez vos photos ici</strong><br>
+        <span class="muted small">ou cliquez pour les choisir (sélection multiple possible)</span>
+      </div>
+      <input id="pick" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+      <p class="small muted mt">Chaque photo est analysée sur cet ordinateur : les visages sont repérés pour que chaque invité retrouve ses photos avec un selfie.</p>
+    </section>
+
+    <section id="progressCard" class="card" hidden>
+      <div class="row">
+        <strong class="grow" id="progressText">Envoi…</strong>
+        <span class="muted small" id="progressCount"></span>
+      </div>
+      <div class="progress mt"><div id="progressBar"></div></div>
+      <div class="stats mt">
+        <div class="stat"><b id="sFaces">0</b><span class="small muted">visages repérés</span></div>
+        <div class="stat"><b id="sNoFace">0</b><span class="small muted">photos sans visage</span></div>
+      </div>
+      <div class="log mt" id="log"></div>
+      <button id="retry" class="btn btn-ghost btn-block mt" hidden>Réessayer les échecs</button>
+    </section>
+
+    <div class="row mt-l">
+      <a class="btn btn-ghost grow" href="/admin" target="_blank">Gérer les photos</a>
+      <button class="btn btn-ghost" id="logout">Déconnexion</button>
+    </div>
+  </main>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/faces.js"></script>
+  <script>
+  (async () => {
+    const { $, esc } = Gala;
+    const cfg = await Gala.loadConfig();
+    const ROLE = 'photographer';
+    $('#albumList').innerHTML = cfg.albums.map(a => `<option value="${esc(a)}">`).join('');
+    $('#album').value = cfg.albums[0] || 'Photographe';
+    $('#logout').onclick = () => Gala.logout(ROLE);
+
+    let jobs = [], running = false, modelsReady = null, totalFaces = 0, noFace = 0;
+
+    function log(msg, color = '') {
+      const d = document.createElement('div');
+      d.textContent = msg; if (color) d.style.color = color;
+      $('#log').prepend(d);
+    }
+    function refresh() {
+      const total = jobs.length;
+      const done = jobs.filter(j => j.status === 'done').length;
+      const failed = jobs.filter(j => j.status === 'error').length;
+      $('#progressBar').style.width = `${total ? ((done + failed) / total) * 100 : 0}%`;
+      $('#progressCount').textContent = `${done} / ${total}${failed ? ` · ${failed} échec(s)` : ''}`;
+      $('#sFaces').textContent = totalFaces;
+      $('#sNoFace').textContent = noFace;
+      return { done, failed };
+    }
+
+    function addFiles(files) {
+      files = [...files].filter(f => /^image\/(jpeg|png|webp)$/.test(f.type));
+      if (!files.length) return Gala.toast('Formats acceptés : JPEG, PNG, WebP.');
+      const album = $('#album').value.trim() || 'Photographe';
+      const [maxDim, q] = $('#quality').value.split('|').map(Number);
+      const tiles = $('#tiles').checked;
+      jobs.push(...files.map(file => ({ file, album, maxDim, q, tiles, status: 'waiting' })));
+      $('#progressCard').hidden = false;
+      refresh();
+      start();
+    }
+
+    // L'analyse des visages utilise la carte graphique : une photo à la fois.
+    let analyzeLock = Promise.resolve();
+    function analyze(fn) {
+      const p = analyzeLock.then(fn, fn);
+      analyzeLock = p.catch(() => {});
+      return p;
+    }
+
+    async function send(job) {
+      job.status = 'sending';
+      if (!job.prepared) {
+        try {
+          job.prepared = await analyze(async () => {
+            const canvas = await Gala.faces.fileToCanvas(job.file, job.maxDim || 3000);
+            const faces = await Gala.faces.describeAll(canvas, { tiles: job.tiles });
+            const blob = job.maxDim ? await Gala.faces.canvasToJpeg(canvas, job.q) : job.file;
+            return { faces, blob, width: canvas.width, height: canvas.height };
+          });
+        } catch (e) {
+          job.status = 'error'; refresh();
+          return log(`✕ ${job.file.name} : lecture impossible (${e.message})`, '#ff8a80');
+        }
+      }
+      const { faces, blob, width, height } = job.prepared;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await Gala.uploadFile('/api/photographer/upload',
+            { album: job.album, width, height, faces: JSON.stringify(faces) }, blob, { role: ROLE });
+          job.status = 'done';
+          totalFaces += faces.length;
+          if (!faces.length) noFace += 1;
+          refresh();
+          log(`✓ ${job.file.name} — ${faces.length} visage(s)`, faces.length ? '' : '#ffcc80');
+          job.prepared = null; // libère la mémoire
+          return;
+        } catch (e) {
+          if (e.status === 401) { Gala.toast('Session expirée'); return Gala.logout(ROLE); }
+          if (e.network && attempt < 3) { await Gala.sleep(2000 * attempt); continue; }
+          job.status = 'error'; refresh();
+          log(`✕ ${job.file.name} : ${e.message}`, '#ff8a80');
+          return;
+        }
+      }
+    }
+
+    async function start() {
+      if (running) return;
+      running = true;
+      $('#retry').hidden = true;
+      $('#progressText').textContent = 'Analyse et envoi… gardez cette page ouverte';
+      try { await modelsReady; } catch { running = false; return; }
+      while (jobs.some(j => j.status === 'waiting')) {
+        await Gala.runPool(jobs.filter(j => j.status === 'waiting').map(j => () => send(j)), 3);
+      }
+      running = false;
+      const { done, failed } = refresh();
+      $('#progressText').textContent = failed ? `Terminé : ${failed} échec(s)` : 'Toutes les photos sont publiées ✓';
+      $('#retry').hidden = !failed;
+      log(`— ${done} photo(s) publiée(s)`);
+    }
+
+    $('#retry').onclick = () => { jobs.filter(j => j.status === 'error').forEach(j => { j.status = 'waiting'; }); start(); };
+
+    const drop = $('#drop');
+    drop.onclick = () => $('#pick').click();
+    $('#pick').onchange = e => { addFiles(e.target.files); e.target.value = ''; };
+    ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+    drop.addEventListener('drop', e => addFiles(e.dataTransfer.files));
+    window.addEventListener('beforeunload', e => { if (running) { e.preventDefault(); e.returnValue = ''; } });
+
+    Gala.setupLogin(ROLE, () => {
+      modelsReady = Gala.faces.load('photographer').then(api => {
+        $('#modelState').className = 'notice';
+        $('#modelState').textContent = `Reconnaissance faciale prête (${api.tf.getBackend() === 'webgl' ? 'accélérée par la carte graphique' : 'mode lent : utilisez Chrome sur un ordinateur'}).`;
+      }).catch(e => {
+        $('#modelState').className = 'notice err';
+        $('#modelState').textContent = e.message + ' Rechargez la page.';
+        throw e;
+      });
+    });
+  })();
+  </script>
+</body>
+</html>

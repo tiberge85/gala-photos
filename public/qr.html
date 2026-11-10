@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QR code à imprimer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700&display=swap">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .controls { padding: 20px 0; }
+    .sheet { background: #fff; color: #111; margin: 0 auto 30px; box-shadow: 0 10px 40px rgba(0,0,0,.4); }
+    .poster { width: 210mm; min-height: 297mm; padding: 22mm 18mm; text-align: center; display: flex; flex-direction: column; align-items: center; }
+    .poster .k { letter-spacing: .3em; text-transform: uppercase; color: var(--accent); font-weight: 700; font-size: 13pt; }
+    .poster h1 { font-family: var(--serif); font-size: 44pt; margin: 6mm 0 2mm; line-height: 1.05; color: var(--primary); }
+    .poster .sub { font-size: 16pt; color: #444; margin: 0; }
+    .poster .qr { width: 120mm; height: 120mm; margin: 12mm 0 8mm; padding: 5mm; border: 2.5mm solid var(--accent); border-radius: 8mm; }
+    .steps { display: flex; gap: 8mm; justify-content: center; font-size: 13pt; }
+    .steps div { max-width: 52mm; }
+    .steps b { display: block; font-size: 22pt; color: var(--accent); }
+    .poster .u { margin-top: auto; font-size: 13pt; color: #555; }
+    .cards { width: 210mm; min-height: 297mm; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 148.5mm; }
+    .tcard { border: 0.3mm dashed #bbb; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 8mm; }
+    .tcard h2 { font-family: var(--serif); color: var(--primary); margin: 0; font-size: 20pt; line-height: 1.1; }
+    .tcard .qr { width: 62mm; height: 62mm; margin: 6mm 0; }
+    .tcard p { margin: 0; font-size: 12pt; }
+    .tcard small { color: #666; margin-top: 3mm; }
+    @media print {
+      @page { size: A4; margin: 0; }
+      body { background: #fff !important; }
+      .controls { display: none; }
+      .sheet { box-shadow: none; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="controls wrap">
+    <div class="row">
+      <div class="chips grow" id="mode">
+        <button class="chip active" data-m="poster">Affiche A4</button>
+        <button class="chip" data-m="cards">Cartes de table (4 par page)</button>
+      </div>
+      <button class="btn btn-primary" onclick="print()">🖨 Imprimer / PDF</button>
+    </div>
+    <p class="small muted mt">Le QR code renvoie vers <strong id="target"></strong></p>
+  </div>
+
+  <div id="poster" class="sheet poster">
+    <div class="k">Retrouvez vos photos</div>
+    <h1 data-event-name>Gala</h1>
+    <p class="sub" data-event-subtitle></p>
+    <img class="qr" alt="QR code">
+    <div class="steps">
+      <div><b>1</b>Scannez ce QR code avec votre téléphone</div>
+      <div><b>2</b>Faites un selfie</div>
+      <div><b>3</b>Téléchargez toutes les photos où vous apparaissez</div>
+    </div>
+    <div class="u" id="u1"></div>
+  </div>
+
+  <div id="cards" class="sheet cards" hidden></div>
+
+  <script src="/js/common.js"></script>
+  <script>
+  (async () => {
+    const { $, $$, esc } = Gala;
+    const cfg = await Gala.loadConfig();
+    const qr = '/api/qr.svg?path=/';
+    const host = cfg.publicUrl.replace(/^https?:\/\//, '');
+    $('#target').textContent = cfg.publicUrl + '/';
+    $('#u1').textContent = host;
+    $$('.poster .qr').forEach(i => { i.src = qr; });
+    $('#cards').innerHTML = Array.from({ length: 4 }, () => `
+      <div class="tcard">
+        <h2>${esc(cfg.eventName)}</h2>
+        <img class="qr" src="${qr}" alt="QR code">
+        <p><strong>Scannez, faites un selfie<br>et retrouvez vos photos</strong></p>
+        <small>${esc(host)} · sans application</small>
+      </div>`).join('');
+    $('#mode').addEventListener('click', e => {
+      const b = e.target.closest('.chip'); if (!b) return;
+      $$('#mode .chip').forEach(c => c.classList.toggle('active', c === b));
+      $('#poster').hidden = b.dataset.m !== 'poster';
+      $('#cards').hidden = b.dataset.m !== 'cards';
+    });
+    if (cfg.publicUrl.includes('localhost')) Gala.toast('Attention : définissez PUBLIC_URL avant d’imprimer.', 6000);
+  })();
+  </script>
+</body>
+</html>

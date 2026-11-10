@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: gala-photos
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: EVENT_NAME
+        value: Gala de la Jeunesse
+      - key: ORGANIZER
+        value: EBPA
+      - key: EVENT_SLUG
+        value: gala-ebpa
+      - key: ALBUMS
+        value: Accueil,Cérémonie,Soirée
+      - key: PUBLIC_GALLERY
+        value: "true"
+      - key: FACE_MATCH_THRESHOLD
+        value: "0.5"
+      - key: PUBLIC_URL
+        sync: false
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: PHOTOGRAPHER_PASSWORD
+        sync: false
+      - key: APP_SECRET
+        generateValue: true

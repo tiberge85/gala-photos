@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Administration</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700&display=swap">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .fc { position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,.7); font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+    .fc.zero { background: var(--danger); }
+  </style>
+</head>
+<body>
+  <header class="hero wrap" style="padding-bottom:6px">
+    <span class="kicker">Administration</span>
+    <h1 data-event-name style="font-size:30px">Gala</h1>
+  </header>
+
+  <form id="login" class="card narrow mt" hidden>
+    <label class="label" for="password">Mot de passe administrateur</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <button class="btn btn-primary btn-block mt">Se connecter</button>
+  </form>
+
+  <main id="app" class="wrap" hidden>
+    <div class="toolbar">
+      <div class="row">
+        <div class="stats grow">
+          <div class="stat"><b id="sPhotos">0</b><span class="small muted">photos</span></div>
+          <div class="stat"><b id="sFaces">0</b><span class="small muted">visages repérés</span></div>
+          <div class="stat"><b id="sNoFace">0</b><span class="small muted">sans visage</span></div>
+          <div class="stat"><b id="sSearch">0</b><span class="small muted">recherches selfie</span></div>
+          <div class="stat"><b id="sHit">–</b><span class="small muted">ont trouvé des photos</span></div>
+        </div>
+        <div class="row">
+          <a class="btn btn-ghost" href="/photographe">Envoyer des photos</a>
+          <a class="btn btn-ghost" href="/qr">QR code</a>
+          <button class="btn btn-ghost" id="logout">Déconnexion</button>
+        </div>
+      </div>
+      <div class="row mt">
+        <div class="chips grow" id="filter">
+          <button class="chip active" data-f="">Toutes</button>
+          <button class="chip" data-f="noface">Sans visage</button>
+        </div>
+        <button class="btn btn-ghost" id="selAll">Tout sélectionner</button>
+        <span class="muted small" id="selInfo"></span>
+        <button class="btn btn-danger" id="bDelete" disabled>✕ Supprimer la sélection</button>
+      </div>
+    </div>
+
+    <div id="grid" class="mod-grid"></div>
+    <div id="empty" class="empty" hidden>Aucune photo. Le photographe les envoie depuis <a href="/photographe">/photographe</a>.</div>
+    <div class="center mt-l"><button id="more" class="btn btn-ghost" hidden>Afficher plus</button></div>
+    <p class="small muted center mt-l" id="thr"></p>
+  </main>
+
+  <script src="/js/common.js"></script>
+  <script>
+  (async () => {
+    const { $, $$, esc } = Gala;
+    await Gala.loadConfig();
+    const ROLE = 'admin';
+    const PAGE = 150;
+    let all = [], version = -1, shown = PAGE, filter = '';
+    const selected = new Set();
+
+    $('#logout').onclick = () => Gala.logout(ROLE);
+    const list = () => all.filter(p => filter !== 'noface' || p.faceCount === 0);
+
+    function updateBulk() {
+      const n = selected.size;
+      $('#selInfo').textContent = n ? `${n} sélectionnée(s)` : '';
+      $('#bDelete').disabled = !n;
+    }
+
+    function render() {
+      const items = list().slice(0, shown);
+      $('#grid').innerHTML = items.map((p, i) => `
+        <div class="mod-card${selected.has(p.id) ? ' selected' : ''}" data-id="${esc(p.id)}" data-i="${i}">
+          <div class="thumb"><img loading="lazy" src="${esc(p.thumb)}" alt="">
+            <span class="sel">${selected.has(p.id) ? '✓' : ''}</span>
+            <span class="fc${p.faceCount ? '' : ' zero'}">${p.faceCount} visage${p.faceCount > 1 ? 's' : ''}</span></div>
+          <div class="meta">${esc(p.album)} · ${Gala.timeAgo(p.createdAt)}</div>
+          <div class="acts" style="grid-template-columns:1fr"><button class="btn btn-danger" data-act="delete">✕ Supprimer</button></div>
+        </div>`).join('');
+      $('#empty').hidden = all.length > 0;
+      $('#more').hidden = list().length <= shown;
+      updateBulk();
+    }
+
+    async function load(force) {
+      try {
+        const data = await Gala.api('/api/admin/photos', { role: ROLE });
+        const s = data.stats;
+        $('#sPhotos').textContent = s.photos;
+        $('#sFaces').textContent = s.faces;
+        $('#sNoFace').textContent = s.noFace;
+        $('#sSearch').textContent = s.searches;
+        $('#sHit').textContent = s.searches ? `${Math.round((s.searchesWithResults / s.searches) * 100)} %` : '–';
+        $('#thr').textContent = `Seuil de reconnaissance : ${s.threshold} (FACE_MATCH_THRESHOLD). Plus petit = plus strict.`;
+        if (!force && data.version === version) return;
+        version = data.version; all = data.items;
+        for (const id of [...selected]) if (!all.some(p => p.id === id)) selected.delete(id);
+        render();
+      } catch (e) {
+        if (e.status === 401) Gala.logout(ROLE);
+      }
+    }
+
+    async function del(ids) {
+      if (!ids.length || !confirm(`Supprimer définitivement ${ids.length} photo(s) ?`)) return;
+      try {
+        await Gala.api('/api/admin/delete', { method: 'POST', body: { ids }, role: ROLE });
+        ids.forEach(id => selected.delete(id));
+        Gala.toast(`${ids.length} photo(s) supprimée(s)`);
+      } catch (e) { Gala.toast(e.message, 5000); }
+      load(true);
+    }
+
+    $('#grid').addEventListener('click', e => {
+      const card = e.target.closest('.mod-card'); if (!card) return;
+      const id = card.dataset.id;
+      if (e.target.closest('[data-act]')) return del([id]);
+      if (e.target.closest('.sel')) {
+        selected.has(id) ? selected.delete(id) : selected.add(id);
+        return render();
+      }
+      if (e.target.closest('.thumb')) Gala.lightbox(list().slice(0, shown), Number(card.dataset.i));
+    });
+    $('#selAll').onclick = () => {
+      const ids = list().slice(0, shown).map(p => p.id);
+      const allSel = ids.every(id => selected.has(id));
+      ids.forEach(id => (allSel ? selected.delete(id) : selected.add(id)));
+      render();
+    };
+    $('#bDelete').onclick = () => del([...selected]);
+    $('#more').onclick = () => { shown += PAGE; render(); };
+    $('#filter').addEventListener('click', e => {
+      const b = e.target.closest('.chip'); if (!b) return;
+      filter = b.dataset.f; shown = PAGE;
+      $$('#filter .chip').forEach(c => c.classList.toggle('active', c === b));
+      render();
+    });
+
+    Gala.setupLogin(ROLE, () => {
+      load(true);
+      setInterval(() => { if (!document.hidden) load(false); }, 8000);
+    });
+  })();
+  </script>
+</body>
+</html>

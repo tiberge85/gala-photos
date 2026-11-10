@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1420">
+  <title>Galerie</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700&display=swap">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="hero wrap">
+    <span class="kicker">Galerie de la soirée</span>
+    <h1 data-event-name>Gala</h1>
+    <div class="ornament"></div>
+  </header>
+
+  <main class="wrap">
+    <div class="toolbar">
+      <div class="row"><span class="muted small grow"><span id="cAll">0</span> photos</span>
+        <a class="btn btn-primary" href="/">🤳 Retrouver mes photos</a></div>
+      <div class="chips mt" id="albums"></div>
+    </div>
+
+    <div id="grid" class="masonry"></div>
+    <div id="empty" class="empty" hidden>Aucune photo pour l’instant. Le photographe les publie au fil de la soirée.</div>
+    <div class="center mt-l"><button id="more" class="btn btn-ghost" hidden>Voir plus de photos</button></div>
+  </main>
+
+  <button id="newPill" class="pill-new" hidden>Nouvelles photos ↑</button>
+
+  <footer class="footer">
+    <a class="btn btn-primary" href="/">🤳 Retrouver mes photos avec un selfie</a>
+  </footer>
+
+  <script src="/js/common.js"></script>
+  <script>
+  (async () => {
+    const { $, $$, esc } = Gala;
+    const cfg = await Gala.loadConfig();
+    const PAGE = 60;
+    let all = [], version = 0, shown = PAGE;
+    let album = '';
+    let pendingUpdate = null;
+
+    function filtered() {
+      return all.filter(p => !album || p.album === album);
+    }
+
+    function renderAlbums() {
+      const albums = [...new Set(all.map(p => p.album).filter(Boolean))];
+      $('#albums').hidden = albums.length < 2;
+      $('#albums').innerHTML = [`<button class="chip${!album ? ' active' : ''}" data-a="">Tous les moments</button>`]
+        .concat(albums.map(a => `<button class="chip${a === album ? ' active' : ''}" data-a="${esc(a)}">${esc(a)}</button>`)).join('');
+    }
+
+    function render() {
+      const list = filtered();
+      $('#cAll').textContent = all.length;
+      const slice = list.slice(0, shown);
+      $('#grid').innerHTML = slice.map((p, i) => {
+        const ratio = p.width && p.height ? `aspect-ratio:${p.width}/${p.height};` : '';
+        return `<figure class="tile" data-i="${i}" style="${ratio}"><img loading="lazy" src="${esc(p.thumb)}" alt=""></figure>`;
+      }).join('');
+      $('#empty').hidden = list.length > 0;
+      $('#more').hidden = list.length <= shown;
+      renderAlbums();
+    }
+
+    async function load(initial) {
+      try {
+        const data = await Gala.api(`/api/photos?v=${initial ? 0 : version}`, { role: cfg.publicGallery ? undefined : 'admin' });
+        if (data.unchanged) return;
+        if (initial || window.scrollY < 200) {
+          all = data.items; version = data.version; render();
+          $('#newPill').hidden = true;
+        } else {
+          pendingUpdate = data;
+          if (data.items.length > all.length) $('#newPill').hidden = false;
+          else { all = data.items; version = data.version; pendingUpdate = null; render(); }
+        }
+      } catch {}
+    }
+
+    $('#newPill').onclick = () => {
+      if (pendingUpdate) { all = pendingUpdate.items; version = pendingUpdate.version; pendingUpdate = null; }
+      shown = PAGE; render();
+      $('#newPill').hidden = true;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    $('#albums').addEventListener('click', e => {
+      const b = e.target.closest('.chip'); if (!b) return;
+      album = b.dataset.a; shown = PAGE; render();
+    });
+    $('#grid').addEventListener('click', e => {
+      const t = e.target.closest('.tile'); if (!t) return;
+      Gala.lightbox(filtered().slice(0, shown), Number(t.dataset.i));
+    });
+    $('#more').onclick = () => { shown += PAGE; render(); };
+
+    // Chargement automatique en bas de page
+    new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && !$('#more').hidden) { shown += PAGE; render(); }
+    }, { rootMargin: '600px' }).observe($('#more'));
+
+    await load(true);
+    setInterval(() => { if (!document.hidden) load(false); }, 15000);
+  })();
+  </script>
+</body>
+</html>

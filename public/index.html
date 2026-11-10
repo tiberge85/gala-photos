@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1420">
+  <title>Retrouvez vos photos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700&display=swap">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .steps3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; font-size: 13px; color: var(--muted); }
+    .steps3 b { display: block; font-size: 22px; color: var(--accent); font-family: var(--serif); }
+    .selfie { width: 110px; height: 110px; border-radius: 50%; object-fit: cover; margin: 0 auto; border: 3px solid var(--accent); background: #000; }
+    .consent { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--muted); cursor: pointer; }
+    .consent input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+    .spinner { width: 22px; height: 22px; border: 3px solid rgba(255,255,255,.2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.9s linear infinite; display: inline-block; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .found { font-family: var(--serif); font-size: 26px; margin: 0; }
+    .askgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 14px; margin-top: 14px; }
+    .askcard { display: flex; flex-direction: column; align-items: center; gap: 8px; transition: opacity .25s, transform .25s; }
+    .askcard.gone { opacity: 0; transform: scale(.9); }
+    .facecrop { width: 120px; height: 120px; border-radius: 50%; background-repeat: no-repeat; background-color: #000; border: 3px solid var(--line); }
+    .askbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; }
+    .askbtns .btn { padding: 9px 4px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <header class="hero narrow">
+    <span class="kicker" data-organizer></span>
+    <h1 data-event-name>Gala</h1>
+    <p data-event-subtitle></p>
+    <div class="ornament"></div>
+  </header>
+
+  <main class="narrow">
+    <!-- Étape 1 : selfie -->
+    <section id="start" class="card">
+      <div class="steps3">
+        <div><b>1</b>Faites un selfie</div>
+        <div><b>2</b>On repère votre visage</div>
+        <div><b>3</b>Téléchargez vos photos</div>
+      </div>
+
+      <label class="consent mt-l">
+        <input type="checkbox" id="consent">
+        <span>J’accepte que mon selfie soit analysé <strong>sur mon téléphone</strong> pour retrouver mes photos.
+          Le selfie n’est ni envoyé ni conservé : seule une empreinte numérique de mon visage sert à la recherche.</span>
+      </label>
+
+      <div class="mt-l">
+        <label class="btn btn-primary btn-xl btn-block" for="camera" id="camBtn">🤳 Prendre mon selfie</label>
+        <input id="camera" type="file" accept="image/*" capture="user" hidden>
+        <label class="btn btn-ghost btn-block mt" for="pick" id="pickBtn">Choisir une photo de moi</label>
+        <input id="pick" type="file" accept="image/*" hidden>
+      </div>
+      <p class="small muted center mt" id="modelInfo"><span class="spinner"></span> Préparation de la reconnaissance…</p>
+      <p class="small muted center">Conseil : de face, visage bien éclairé, sans lunettes de soleil.</p>
+    </section>
+
+    <!-- Étape 2 : analyse / résultats -->
+    <section id="result" class="card center" hidden>
+      <img id="selfieImg" class="selfie" alt="">
+      <div id="busy" class="mt"><span class="spinner"></span> <span id="busyText">Analyse de votre selfie…</span></div>
+      <div id="msg" class="mt" hidden></div>
+      <div id="actions" class="mt" hidden>
+        <div id="zipLinks" class="row" style="justify-content:center"></div>
+        <p class="small muted mt">Sur iPhone : ouvrez une photo puis appuyez longuement pour l’enregistrer dans Photos.</p>
+      </div>
+    </section>
+
+    <section id="ask" class="card center mt" hidden>
+      <p class="found" style="font-size:22px">Est-ce vous ?</p>
+      <p class="small muted">Vos réponses nous aident à retrouver encore plus de photos de vous.</p>
+      <div id="askList" class="askgrid"></div>
+    </section>
+
+    <div id="grid" class="masonry mt"></div>
+
+    <section id="after" class="center mt-l" hidden>
+      <p class="small muted" id="autoInfo">Le photographe publie au fil de la soirée : la recherche se relance automatiquement.</p>
+      <div class="row" style="justify-content:center">
+        <button class="btn btn-ghost" id="again">🔄 Rechercher à nouveau</button>
+        <button class="btn btn-ghost" id="redo">🤳 Refaire mon selfie</button>
+      </div>
+      <button class="btn btn-ghost small mt" id="forget" style="font-size:13px">Effacer mon empreinte de ce téléphone</button>
+    </section>
+
+    <div class="center mt-l" id="galleryLink" hidden>
+      <a class="btn btn-ghost" href="/galerie">Voir toutes les photos de la soirée →</a>
+    </div>
+  </main>
+
+  <footer class="footer">Photos officielles du photographe de l’événement.</footer>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/faces.js"></script>
+  <script>
+  (async () => {
+    const { $, esc } = Gala;
+    const cfg = await Gala.loadConfig();
+    $('#galleryLink').hidden = !cfg.publicGallery;
+    const KEY = 'gala_face_' + location.host;
+    const ZIP_CHUNK = 80;
+
+    let descriptor = null, items = [], timer = null, confirmed = [], rejected = [], answerTimer = null;
+    const save = () => {
+      try {
+        const old = JSON.parse(localStorage.getItem(KEY) || '{}');
+        localStorage.setItem(KEY, JSON.stringify({ ...old, d: descriptor, confirmed, rejected, at: Date.now() }));
+      } catch {}
+    };
+    const models = Gala.faces.load('guest');
+    models.then(() => { $('#modelInfo').textContent = '✓ Prêt'; })
+      .catch(() => { $('#modelInfo').textContent = 'La reconnaissance n’a pas pu se charger. Vérifiez votre connexion puis rechargez la page.'; });
+
+    function needConsent(e) {
+      if (!$('#consent').checked) {
+        e.preventDefault();
+        Gala.toast('Cochez d’abord la case d’accord.');
+        $('#consent').parentElement.style.color = 'var(--accent)';
+      }
+    }
+    $('#camBtn').addEventListener('click', needConsent);
+    $('#pickBtn').addEventListener('click', needConsent);
+
+    function busy(text) {
+      $('#busy').hidden = !text; $('#busyText').textContent = text || '';
+    }
+    function message(html, cls = 'notice') {
+      $('#msg').hidden = !html; $('#msg').className = cls; $('#msg').innerHTML = html || '';
+    }
+
+    async function onSelfie(input) {
+      const file = input.files[0];
+      input.value = '';
+      if (!file) return;
+      $('#start').hidden = true;
+      $('#result').hidden = false;
+      $('#after').hidden = true;
+      $('#actions').hidden = true;
+      $('#grid').innerHTML = '';
+      message('');
+      busy('Analyse de votre selfie…');
+      try {
+        await models;
+        const canvas = await Gala.faces.fileToCanvas(file, 1024);
+        $('#selfieImg').src = canvas.toDataURL('image/jpeg', 0.7);
+        const r = await Gala.faces.describeSelfie(canvas);
+        if (!r) {
+          busy('');
+          message('<strong>Aucun visage détecté.</strong><br><span class="small">Reprenez un selfie de face, bien éclairé, en tenant le téléphone à hauteur des yeux.</span>', 'notice warn');
+          $('#after').hidden = false; $('#again').hidden = true; $('#forget').hidden = true;
+          return;
+        }
+        // Recadre la vignette sur le visage trouvé
+        const b = r.box, pad = b.width * 0.6;
+        const sx = Math.max(0, b.x - pad), sy = Math.max(0, b.y - pad);
+        const side = Math.min(canvas.width - sx, canvas.height - sy, b.width + pad * 2);
+        const c = document.createElement('canvas'); c.width = c.height = 220;
+        c.getContext('2d').drawImage(canvas, sx, sy, side, side, 0, 0, 220, 220);
+        $('#selfieImg').src = c.toDataURL('image/jpeg', 0.8);
+        descriptor = r.descriptor; confirmed = []; rejected = [];
+        try { localStorage.setItem(KEY, JSON.stringify({ d: descriptor, img: $('#selfieImg').src, confirmed, rejected, at: Date.now() })); } catch {}
+        await search();
+      } catch (e) {
+        busy('');
+        message(`<strong>Une erreur est survenue.</strong><br><span class="small">${esc(e.message)}</span>`, 'notice err');
+        $('#after').hidden = false;
+      }
+    }
+
+    async function search(silent) {
+      if (!descriptor) return;
+      if (!silent) busy('Recherche de vos photos…');
+      try {
+        const data = await Gala.api('/api/search', { method: 'POST', body: { descriptor, confirmed, rejected } });
+        renderAsk(data.candidates || []);
+        const changed = data.items.length !== items.length || data.items.some((p, i) => items[i]?.id !== p.id);
+        items = data.items;
+        busy('');
+        if (!items.length) {
+          message(`<p class="found">Pas encore de photo de vous</p>
+            <p class="small muted">${data.total} photo(s) publiées pour l’instant. Le photographe en ajoute au fil de la soirée : revenez plus tard, votre recherche est gardée sur ce téléphone.</p>`, '');
+          $('#actions').hidden = true;
+        } else {
+          message(`<p class="found">${items.length} photo${items.length > 1 ? 's' : ''} de vous 🎉</p>
+            <p class="small muted">Touchez une photo pour l’agrandir et la télécharger.</p>`, '');
+          renderZip();
+          $('#actions').hidden = false;
+        }
+        if (changed) renderGrid();
+        $('#after').hidden = false; $('#again').hidden = false; $('#forget').hidden = false;
+        schedule();
+      } catch (e) {
+        busy('');
+        Gala.toast(e.message, 5000);
+        $('#after').hidden = false;
+      }
+    }
+
+    // Vignette ronde centrée sur un visage (cadre en proportions de la photo)
+    function faceStyle(photo, b, S = 120) {
+      const W = photo.width || 1000, H = photo.height || 1000;
+      const side = Math.max(b[2] * W, b[3] * H) * 1.7;
+      const left = b[0] * W + (b[2] * W) / 2 - side / 2;
+      const top = b[1] * H + (b[3] * H) / 2 - side / 2;
+      const k = S / side;
+      return `background-image:url("${photo.thumb}");background-size:${W * k}px ${H * k}px;background-position:${-left * k}px ${-top * k}px`;
+    }
+
+    function renderAsk(cands) {
+      cands = cands.filter(c => c.box);
+      $('#ask').hidden = !cands.length;
+      $('#askList').innerHTML = cands.map(c => `
+        <div class="askcard" data-key="${esc(c.key)}">
+          <div class="facecrop" style='${faceStyle(c.photo, c.box)}'></div>
+          <div class="askbtns">
+            <button class="btn btn-ok" data-a="yes">Oui</button>
+            <button class="btn btn-ghost" data-a="no">Non</button>
+          </div>
+        </div>`).join('');
+    }
+
+    $('#askList').addEventListener('click', e => {
+      const btn = e.target.closest('[data-a]'); if (!btn) return;
+      const card = btn.closest('.askcard');
+      const key = card.dataset.key;
+      (btn.dataset.a === 'yes' ? confirmed : rejected).push(key);
+      save();
+      card.classList.add('gone');
+      setTimeout(() => card.remove(), 250);
+      // Regroupe les réponses rapides avant de relancer la recherche
+      clearTimeout(answerTimer);
+      answerTimer = setTimeout(() => search(true), 900);
+    });
+
+    function renderZip() {
+      const ids = items.map(p => p.id);
+      const parts = [];
+      for (let i = 0; i < ids.length; i += ZIP_CHUNK) parts.push(ids.slice(i, i + ZIP_CHUNK));
+      $('#zipLinks').innerHTML = parts.map((p, i) => {
+        const href = '/api/zip?ids=' + p.map(encodeURIComponent).join(',');
+        const label = parts.length > 1 ? `⬇ Télécharger (partie ${i + 1})` : `⬇ Tout télécharger (${p.length})`;
+        return `<a class="btn btn-primary" href="${href}">${label}</a>`;
+      }).join('');
+    }
+
+    function renderGrid() {
+      $('#grid').innerHTML = items.map((p, i) => {
+        const ratio = p.width && p.height ? `aspect-ratio:${p.width}/${p.height};` : '';
+        return `<figure class="tile" data-i="${i}" style="${ratio}"><img loading="lazy" src="${esc(p.thumb)}" alt=""></figure>`;
+      }).join('');
+    }
+
+    function schedule() {
+      clearTimeout(timer);
+      timer = setTimeout(() => { if (!document.hidden) search(true); else schedule(); }, 60000);
+    }
+
+    $('#grid').addEventListener('click', e => {
+      const t = e.target.closest('.tile'); if (!t) return;
+      Gala.lightbox(items, Number(t.dataset.i));
+    });
+    $('#again').onclick = () => search();
+    $('#redo').onclick = () => {
+      clearTimeout(timer);
+      $('#result').hidden = true; $('#after').hidden = true; $('#ask').hidden = true; $('#grid').innerHTML = '';
+      $('#start').hidden = false; $('#consent').checked = true;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    $('#forget').onclick = () => {
+      try { localStorage.removeItem(KEY); } catch {}
+      descriptor = null; items = []; confirmed = []; rejected = []; clearTimeout(timer);
+      $('#ask').hidden = true;
+      Gala.toast('Empreinte effacée de ce téléphone.');
+      $('#redo').onclick();
+      $('#consent').checked = false;
+    };
+    $('#camera').addEventListener('change', e => onSelfie(e.target));
+    $('#pick').addEventListener('change', e => onSelfie(e.target));
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && descriptor) search(true); });
+
+    // Retour d'un invité : relance la recherche avec l'empreinte gardée sur son téléphone
+    try {
+      const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (saved && saved.d && saved.d.length === 128) {
+        descriptor = saved.d;
+        confirmed = Array.isArray(saved.confirmed) ? saved.confirmed : [];
+        rejected = Array.isArray(saved.rejected) ? saved.rejected : [];
+        $('#start').hidden = true; $('#result').hidden = false;
+        $('#selfieImg').src = saved.img || '';
+        search();
+      }
+    } catch {}
+  })();
+  </script>
+</body>
+</html>
