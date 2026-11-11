@@ -252,8 +252,21 @@ select option { color: #111; }
 .card { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); background-color: rgba(10, 47, 37, .82); }
 
 /* Partenaires */
-.partners { margin: 34px auto 0; }
-.partners .kicker { display: block; letter-spacing: .25em; text-transform: uppercase; font-size: 11px; color: var(--accent); margin-bottom: 12px; }
+.partners {
+  margin: 22px auto 0; padding: 18px 0 16px; border-radius: var(--radius);
+  background: rgba(10, 47, 37, .82); border: 1px solid var(--line);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, .25); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  overflow: hidden;
+}
+.partners .kicker {
+  display: block; letter-spacing: .25em; text-transform: uppercase; font-size: 11px; color: var(--accent);
+  margin: 0 16px 14px; text-align: center;
+}
+.partners .kicker::before, .partners .kicker::after {
+  content: ''; display: inline-block; width: 28px; height: 1px; background: var(--accent); vertical-align: middle; margin: 0 10px; opacity: .6;
+}
+.partners .ptrack { padding: 0 16px; }
+.partners .ptrack.scroll { padding: 0; }
 .ptrack { overflow: hidden; }
 .ptrack.scroll { -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
 .prow { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
@@ -261,9 +274,12 @@ select option { color: #111; }
 .ptrack.scroll:hover .prow { animation-play-state: paused; }
 @keyframes partners-scroll { to { transform: translateX(-50%); } }
 .partner { display: flex; flex-direction: column; align-items: center; gap: 6px; text-decoration: none; color: var(--muted); font-size: 12px; width: 120px; flex: none; }
-.partner .plogo { width: 120px; height: 72px; background: #fff; border-radius: 12px; display: grid; place-items: center; padding: 8px; box-shadow: 0 0 0 1px var(--line); }
-.partner img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.partner .pname { text-align: center; line-height: 1.2; }
+.partner .plogo { width: 120px; height: 72px; background: #fff; border-radius: 12px; display: grid; place-items: center; padding: 8px; box-shadow: 0 0 0 2px rgba(212, 175, 55, .55), 0 6px 16px rgba(0, 0, 0, .25); }
+.partner:hover .plogo { box-shadow: 0 0 0 2px var(--accent), 0 6px 16px rgba(0, 0, 0, .25); }
+.partner .plogo { overflow: hidden; }
+.partner .plogo img { display: block; width: auto; height: auto; max-width: 104px; max-height: 56px; object-fit: contain; }
+.partner .pname { text-align: center; line-height: 1.2; color: var(--text); opacity: .85; }
+.prow { padding: 3px 0; }
 
 /* Encart « Au programme ce week-end » */
 .programme { margin-top: 18px; text-align: center; }

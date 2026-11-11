@@ -172,7 +172,7 @@
       $('#pCount').textContent = items.length ? `(${items.length})` : '';
       $('#pList').innerHTML = items.map(p => `
         <div class="mod-card" data-pid="${esc(p.id)}">
-          <div class="thumb" style="background:#fff;display:grid;place-items:center;padding:14px;cursor:default"><img src="${esc(p.logo)}" alt="" style="object-fit:contain"></div>
+          <div class="thumb" style="background:#fff;display:grid;place-items:center;padding:14px;cursor:default;overflow:hidden"><img src="${esc(p.logo)}" alt="" style="width:auto;height:auto;max-width:100%;max-height:120px;object-fit:contain"></div>
           <div class="meta"><strong style="color:var(--text)">${esc(p.name)}</strong></div>
           <div class="meta">${p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.url.replace(/^https?:\/\//, ''))}</a>` : 'Sans lien'}</div>
           ${p.message ? `<div class="meta" style="white-space:normal">« ${esc(p.message)} »</div>` : ''}

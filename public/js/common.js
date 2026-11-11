@@ -80,7 +80,7 @@
     };
     const many = items.length > 2;
     const row = items.map(card).join('');
-    el.innerHTML = `<p class="kicker center">Avec le soutien de nos partenaires</p>
+    el.innerHTML = `<p class="kicker">Nos partenaires</p>
       <div class="ptrack${many ? ' scroll' : ''}"><div class="prow">${row}${many ? row : ''}</div></div>`;
     if (many) el.querySelector('.prow').style.animationDuration = `${Math.max(18, items.length * 6)}s`;
     el.hidden = false;

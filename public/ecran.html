@@ -38,7 +38,8 @@
     .inter .pcard { position: relative; text-align: center; }
     .inter .pcard .k { letter-spacing: .3em; text-transform: uppercase; color: var(--accent); font-size: 18px; margin-bottom: 26px; }
     .inter .pcard .lg { width: min(560px, 60vw); height: min(300px, 32vh); background: #fff; border-radius: 22px; display: grid; place-items: center; padding: 30px; margin: 0 auto; box-shadow: 0 0 0 3px var(--accent), 0 30px 80px rgba(0,0,0,.5); }
-    .inter .pcard .lg img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .inter .pcard .lg { overflow: hidden; }
+    .inter .pcard .lg img { display: block; width: auto; height: auto; max-width: calc(min(560px, 60vw) - 60px); max-height: calc(min(300px, 32vh) - 60px); object-fit: contain; }
     .inter .pcard h3 { font-family: var(--serif); font-size: 44px; color: var(--accent-light); margin: 26px 0 6px; }
     .inter .pcard p { font-size: 22px; color: var(--muted); margin: 0; max-width: 40ch; }
     .hint { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.6); padding: 8px 14px; border-radius: 10px; font-size: 14px; transition: opacity .5s; }
