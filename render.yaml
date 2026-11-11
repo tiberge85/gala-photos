@@ -32,7 +32,7 @@ services:
       - key: FACE_MATCH_THRESHOLD
         value: "0.5"
       - key: PUBLIC_URL
-        sync: false
+        value: "https://gala-photos.onrender.com"
       - key: CLOUDINARY_URL
         sync: false
       - key: CLOUDINARY_CLOUD_NAME

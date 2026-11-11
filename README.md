@@ -57,7 +57,7 @@ Pour tester depuis un téléphone sur le même Wi-Fi, ouvre `http://IP-DU-PC:300
 1. **Cloudinary** : crée un compte gratuit et copie la valeur « API environment variable » (`cloudinary://...`).
 2. **GitHub** : pousse ce dossier dans un nouveau dépôt.
 3. **Render** : New → Blueprint, choisis le dépôt, puis renseigne `CLOUDINARY_URL`, `ADMIN_PASSWORD`, `PHOTOGRAPHER_PASSWORD` et `PUBLIC_URL`.
-4. **Domaine** : Render → Settings → Custom Domain, ajoute `gala.ramyaci.tech`, puis crée le CNAME chez ton registrar.
+4. **Adresse** : le site reste sur `https://gala-photos.onrender.com` (déjà défini dans `PUBLIC_URL`). Un domaine personnalisé est optionnel.
 5. Ouvre `/qr` et imprime **après** avoir défini `PUBLIC_URL`.
 
 Prends l'offre **Starter** de Render : l'offre gratuite se met en veille et le premier scan attendrait.

@@ -46,7 +46,7 @@ const CONFIG = {
   eventSlug: env('EVENT_SLUG', 'gala-ebpa').toLowerCase().replace(/[^a-z0-9-]/g, '-'),
   organizer: env('ORGANIZER', 'Église Baptiste Philadelphie d’Angré'),
   logo: env('LOGO_URL', '/img/logo.png'),
-  publicUrl: env('PUBLIC_URL', '').replace(/\/$/, ''),
+  publicUrl: env('PUBLIC_URL', process.env.RENDER_EXTERNAL_URL || '').replace(/\/$/, ''),
   albums: env('ALBUMS', 'Accueil,Cérémonie,Soirée').split(',').map(s => s.trim()).filter(Boolean),
   adminPassword: env('ADMIN_PASSWORD', env('MODERATOR_PASSWORD', 'admin')),
   photographerPassword: env('PHOTOGRAPHER_PASSWORD', 'photographe'),
