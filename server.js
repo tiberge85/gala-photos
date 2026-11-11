@@ -69,6 +69,18 @@ const storage = createStorage({ slug: CONFIG.eventSlug, dataDir: CONFIG.dataDir 
 /* Index en mémoire                                                    */
 /* ------------------------------------------------------------------ */
 const photos = new Map(); // id -> item (faces converties en Float32Array)
+let partners = [];          // partenaires de l'activité (logo, nom, lien, message)
+
+// Visuels de fond qui défilent : tous les fichiers image de public/img/fond (triés par nom)
+const fs = require('fs');
+function listBackgrounds() {
+  const dir = path.join(__dirname, 'public', 'img', 'fond');
+  try {
+    return fs.readdirSync(dir).filter(f => /\.(jpe?g|png|webp)$/i.test(f) && !f.startsWith('.')).sort()
+      .map(f => `/img/fond/${encodeURIComponent(f)}`);
+  } catch { return []; }
+}
+const BACKGROUNDS = listBackgrounds();
 let version = 0;
 const stats = { searches: 0, searchesWithResults: 0 };
 const bump = () => { version += 1; };
@@ -191,6 +203,7 @@ app.get('/api/config', (req, res) => {
     eventSubtitle: CONFIG.eventSubtitle,
     organizer: CONFIG.organizer,
     logo: CONFIG.logo,
+    backgrounds: BACKGROUNDS,
     albums: CONFIG.albums,
     publicGallery: CONFIG.publicGallery,
     primaryColor: CONFIG.primaryColor,
@@ -376,6 +389,49 @@ app.post('/api/admin/delete', requireRole('admin'), async (req, res) => {
   }
 });
 
+/* ------------------------------------------------------------------ */
+/* Partenaires                                                         */
+/* ------------------------------------------------------------------ */
+app.get('/api/partners', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ items: partners.map(({ id, name, url, message, logo }) => ({ id, name, url, message, logo })) });
+});
+
+app.post('/api/admin/partners', requireRole('admin'), (req, res) => {
+  upload.single('logo')(req, res, async err => {
+    if (err) return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'Logo trop lourd.' : 'Envoi invalide.' });
+    if (!req.file) return res.status(400).json({ error: 'Ajoutez le logo du partenaire.' });
+    const mimetype = detectImage(req.file.buffer);
+    if (!mimetype) return res.status(415).json({ error: 'Logo : formats acceptés JPEG, PNG ou WebP.' });
+    const name = cleanText(req.body.name, 60);
+    if (!name) return res.status(400).json({ error: 'Indiquez le nom du partenaire.' });
+    let url = cleanText(req.body.url, 200);
+    if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+    if (url && !/^https?:\/\/[^\s/$.?#].[^\s]*$/i.test(url)) return res.status(400).json({ error: 'Lien invalide.' });
+    const meta = { name, url, message: cleanText(req.body.message, 140) };
+    try {
+      const p = await storage.savePartner({ buffer: req.file.buffer, mimetype, meta });
+      partners.push(p);
+      res.json({ ok: true, id: p.id });
+    } catch (e) {
+      console.error('Partenaire :', e.message || e);
+      res.status(502).json({ error: 'Le stockage n’a pas répondu. Réessayez.' });
+    }
+  });
+});
+
+app.post('/api/admin/partners/delete', requireRole('admin'), async (req, res) => {
+  const id = String((req.body && req.body.id) || '');
+  if (!partners.some(p => p.id === id)) return res.status(404).json({ error: 'Partenaire introuvable.' });
+  try {
+    await storage.removePartner(id);
+    partners = partners.filter(p => p.id !== id);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e); res.status(502).json({ error: 'Échec de la suppression.' });
+  }
+});
+
 // QR code (SVG) pointant vers une page de l'application
 app.get('/api/qr.svg', async (req, res) => {
   const base = CONFIG.publicUrl || `${req.protocol}://${req.get('host')}`;
@@ -413,7 +469,8 @@ for (const [route, file] of Object.entries(pages)) {
   app.get(route, (req, res) => res.sendFile(path.join(pub, file)));
 }
 app.get('/moderation', (req, res) => res.redirect('/admin'));
-app.use(express.static(pub, { maxAge: '1h' }));
+// CSS, JS et images : le navigateur revérifie à chaque visite (ETag), pour toujours avoir la dernière version
+app.use(express.static(pub, { maxAge: 0 }));
 app.use((req, res) => res.status(404).sendFile(path.join(pub, 'index.html')));
 
 /* ------------------------------------------------------------------ */
@@ -426,6 +483,7 @@ process.on('unhandledRejection', e => console.error('Erreur non gérée :', e &&
     try {
       const items = await storage.init();
       items.forEach(addToIndex);
+      partners = (await storage.listPartners()).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
       break;
     } catch (e) {
       console.error(`Chargement de l’index impossible (tentative ${attempt}) :`, e.message || e);

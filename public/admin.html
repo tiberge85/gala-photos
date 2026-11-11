@@ -53,7 +53,26 @@
       </div>
     </div>
 
-    <div id="grid" class="mod-grid"></div>
+    <details class="card mt" id="partnersBox">
+      <summary style="cursor:pointer;font-weight:700">🤝 Partenaires de l’activité <span class="muted small" id="pCount"></span></summary>
+      <p class="small muted mt">Leurs logos défilent en bas des pages invités et galerie, et s’affichent sur l’écran du diaporama entre les photos.</p>
+      <form id="pForm" class="mt">
+        <div class="row">
+          <div class="grow"><label class="label" for="pName">Nom *</label><input id="pName" name="name" type="text" maxlength="60" required placeholder="Ex. : Ets Koné & Fils"></div>
+          <div class="grow"><label class="label" for="pUrl">Lien (facultatif)</label><input id="pUrl" name="url" type="text" maxlength="200" placeholder="Ex. : facebook.com/partenaire"></div>
+        </div>
+        <label class="label mt" for="pMsg">Message sur l’écran (facultatif, 140 caractères)</label>
+        <input id="pMsg" name="message" type="text" maxlength="140" placeholder="Ex. : Fier partenaire de la Fête de la Jeunesse 2026">
+        <div class="row mt">
+          <label class="btn btn-ghost grow" for="pLogo" id="pLogoLabel">🖼 Choisir le logo (PNG de préférence)</label>
+          <input id="pLogo" name="logo" type="file" accept="image/png,image/jpeg,image/webp" hidden required>
+          <button class="btn btn-primary" id="pSubmit">Ajouter le partenaire</button>
+        </div>
+      </form>
+      <div id="pList" class="mod-grid mt"></div>
+    </details>
+
+    <div id="grid" class="mod-grid mt"></div>
     <div id="empty" class="empty" hidden>Aucune photo. Le photographe les envoie depuis <a href="/photographe">/photographe</a>.</div>
     <div class="center mt-l"><button id="more" class="btn btn-ghost" hidden>Afficher plus</button></div>
     <p class="small muted center mt-l" id="thr"></p>
@@ -147,7 +166,46 @@
       render();
     });
 
+    /* ---- Partenaires ---- */
+    async function loadPartners() {
+      const { items } = await Gala.api('/api/partners');
+      $('#pCount').textContent = items.length ? `(${items.length})` : '';
+      $('#pList').innerHTML = items.map(p => `
+        <div class="mod-card" data-pid="${esc(p.id)}">
+          <div class="thumb" style="background:#fff;display:grid;place-items:center;padding:14px;cursor:default"><img src="${esc(p.logo)}" alt="" style="object-fit:contain"></div>
+          <div class="meta"><strong style="color:var(--text)">${esc(p.name)}</strong></div>
+          <div class="meta">${p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.url.replace(/^https?:\/\//, ''))}</a>` : 'Sans lien'}</div>
+          ${p.message ? `<div class="meta" style="white-space:normal">« ${esc(p.message)} »</div>` : ''}
+          <div class="acts" style="grid-template-columns:1fr"><button class="btn btn-danger" data-pdel>✕ Retirer</button></div>
+        </div>`).join('');
+    }
+    $('#pLogo').addEventListener('change', e => {
+      const f = e.target.files[0];
+      $('#pLogoLabel').textContent = f ? `🖼 ${f.name}` : '🖼 Choisir le logo (PNG de préférence)';
+    });
+    $('#pForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const f = $('#pLogo').files[0];
+      if (!f) return Gala.toast('Choisissez le logo du partenaire.');
+      $('#pSubmit').disabled = true;
+      try {
+        await Gala.uploadFile('/api/admin/partners', { name: $('#pName').value, url: $('#pUrl').value, message: $('#pMsg').value }, f, { role: ROLE, field: 'logo' });
+        e.target.reset(); $('#pLogoLabel').textContent = '🖼 Choisir le logo (PNG de préférence)';
+        Gala.toast('Partenaire ajouté');
+        loadPartners();
+      } catch (err) { Gala.toast(err.message, 5000); }
+      finally { $('#pSubmit').disabled = false; }
+    });
+    $('#pList').addEventListener('click', async e => {
+      const b = e.target.closest('[data-pdel]'); if (!b) return;
+      const id = b.closest('[data-pid]').dataset.pid;
+      if (!confirm('Retirer ce partenaire ?')) return;
+      try { await Gala.api('/api/admin/partners/delete', { method: 'POST', body: { id }, role: ROLE }); loadPartners(); }
+      catch (err) { Gala.toast(err.message, 5000); }
+    });
+
     Gala.setupLogin(ROLE, () => {
+      loadPartners();
       load(true);
       setInterval(() => { if (!document.hidden) load(false); }, 8000);
     });

@@ -24,6 +24,46 @@
     return c;
   };
 
+  /* ---------- Visuels du week-end qui défilent en fond ---------- */
+  G.startBackground = function (list, every = 7000) {
+    if (!list || !list.length) return;
+    const box = document.createElement('div');
+    box.className = 'bgfx';
+    box.setAttribute('aria-hidden', 'true');
+    box.innerHTML = '<img alt=""><img alt=""><div class="veil"></div>';
+    document.body.prepend(box);
+    const [a, b] = box.querySelectorAll('img');
+    let i = 0, front = a;
+    a.src = list[0]; a.classList.add('on');
+    if (list.length < 2) return;
+    setInterval(() => {
+      i = (i + 1) % list.length;
+      const back = front === a ? b : a;
+      back.onload = () => { back.classList.add('on'); front.classList.remove('on'); front = back; };
+      back.src = list[i];
+    }, every);
+  };
+
+  /* ---------- Bandeau des partenaires ---------- */
+  G.renderPartners = async function (el) {
+    el = typeof el === 'string' ? G.$(el) : el;
+    if (!el) return [];
+    let items = [];
+    try { items = (await G.api('/api/partners')).items; } catch {}
+    if (!items.length) { el.hidden = true; return items; }
+    const card = p => {
+      const inner = `<span class="plogo"><img src="${G.esc(p.logo)}" alt="${G.esc(p.name)}" loading="lazy"></span><span class="pname">${G.esc(p.name)}</span>`;
+      return p.url ? `<a class="partner" href="${G.esc(p.url)}" target="_blank" rel="noopener sponsored">${inner}</a>` : `<div class="partner">${inner}</div>`;
+    };
+    const many = items.length > 2;
+    const row = items.map(card).join('');
+    el.innerHTML = `<p class="kicker center">Avec le soutien de nos partenaires</p>
+      <div class="ptrack${many ? ' scroll' : ''}"><div class="prow">${row}${many ? row : ''}</div></div>`;
+    if (many) el.querySelector('.prow').style.animationDuration = `${Math.max(18, items.length * 6)}s`;
+    el.hidden = false;
+    return items;
+  };
+
   /* ---------- Messages ---------- */
   let toastTimer;
   G.toast = function (msg, ms = 3200) {
@@ -115,11 +155,11 @@
   };
 
   /* ---------- Envoi avec progression ---------- */
-  G.uploadFile = function (url, fields, blob, { role, onProgress } = {}) {
+  G.uploadFile = function (url, fields, blob, { role, onProgress, field = 'photo' } = {}) {
     return new Promise((resolve, reject) => {
       const fd = new FormData();
       Object.entries(fields).forEach(([k, v]) => { if (v !== undefined && v !== null) fd.append(k, v); });
-      fd.append('photo', blob, (blob.name || 'photo.jpg'));
+      fd.append(field, blob, (blob.name || 'photo.jpg'));
       const xhr = new XMLHttpRequest();
       xhr.open('POST', url);
       if (role) xhr.setRequestHeader('x-auth-token', G.token(role));

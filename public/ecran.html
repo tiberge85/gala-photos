@@ -31,6 +31,16 @@
     .waiting .script { font-size: 44px; }
     .waiting img { width: 120px; height: 120px; border-radius: 50%; margin: 0 auto 20px; display: block; box-shadow: 0 0 0 3px var(--accent), 0 0 40px rgba(212,175,55,.4); }
     .waiting p { color: var(--muted); font-size: 24px; }
+    .inter { position: fixed; inset: 0 0 120px 0; display: grid; place-items: center; opacity: 0; transition: opacity 1.2s ease; pointer-events: none; z-index: 2; }
+    .inter.on { opacity: 1; }
+    .inter .ibg { position: absolute; inset: -40px; background-size: cover; background-position: center; filter: blur(30px) brightness(.4); }
+    .inter .promo { position: relative; height: calc(100vh - 190px); width: auto; max-width: 90vw; object-fit: contain; border-radius: 14px; box-shadow: 0 0 0 3px var(--accent), 0 30px 80px rgba(0,0,0,.6); }
+    .inter .pcard { position: relative; text-align: center; }
+    .inter .pcard .k { letter-spacing: .3em; text-transform: uppercase; color: var(--accent); font-size: 18px; margin-bottom: 26px; }
+    .inter .pcard .lg { width: min(560px, 60vw); height: min(300px, 32vh); background: #fff; border-radius: 22px; display: grid; place-items: center; padding: 30px; margin: 0 auto; box-shadow: 0 0 0 3px var(--accent), 0 30px 80px rgba(0,0,0,.5); }
+    .inter .pcard .lg img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .inter .pcard h3 { font-family: var(--serif); font-size: 44px; color: var(--accent-light); margin: 26px 0 6px; }
+    .inter .pcard p { font-size: 22px; color: var(--muted); margin: 0; max-width: 40ch; }
     .hint { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.6); padding: 8px 14px; border-radius: 10px; font-size: 14px; transition: opacity .5s; }
   </style>
 </head>
@@ -39,6 +49,7 @@
     <div class="slide" id="s0"><div class="bg"></div><img alt=""><span class="credit"></span></div>
     <div class="slide" id="s1"><div class="bg"></div><img alt=""><span class="credit"></span></div>
   </div>
+  <div class="inter" id="inter"><div class="ibg"></div><div class="icontent"></div></div>
   <div class="waiting" id="waiting">
     <div><img data-logo alt="" hidden><h1 data-event-name>Gala</h1><p class="script" data-event-subtitle></p><p>Les photos du photographe apparaîtront ici</p></div>
   </div>
@@ -64,6 +75,38 @@
     $('#url').textContent = cfg.publicUrl.replace(/^https?:\/\//, '');
 
     let items = [], version = 0, known = new Set(), fresh = [], cycle = [], cur = 0, started = false;
+    // Annonces entre les photos : visuels du week-end + partenaires
+    const EVERY = Math.max(2, Number(params.get('pub')) || 4); // une annonce toutes les N photos
+    let extras = [], extraIdx = 0, shownSince = 0;
+    async function loadExtras() {
+      let ps = [];
+      try { ps = (await Gala.api('/api/partners')).items; } catch {}
+      const promos = (cfg.backgrounds || []).map(src => ({ type: 'promo', src }));
+      const partners = ps.map(p => ({ type: 'partner', p }));
+      // alterne visuels et partenaires
+      const out = [];
+      for (let i = 0; i < Math.max(promos.length, partners.length); i++) {
+        if (promos[i]) out.push(promos[i]);
+        if (partners[i]) out.push(partners[i]);
+      }
+      extras = out;
+    }
+    function showExtra() {
+      const x = extras[extraIdx++ % extras.length];
+      const box = $('#inter');
+      if (x.type === 'promo') {
+        box.querySelector('.ibg').style.backgroundImage = `url("${x.src}")`;
+        box.querySelector('.icontent').innerHTML = `<img class="promo" src="${x.src}" alt="">`;
+      } else {
+        box.querySelector('.ibg').style.backgroundImage = 'none';
+        box.querySelector('.icontent').innerHTML = `<div class="pcard"><div class="k">Merci à nos partenaires</div>
+          <div class="lg"><img src="${Gala.esc(x.p.logo)}" alt=""></div>
+          <h3>${Gala.esc(x.p.name)}</h3>${x.p.message ? `<p>${Gala.esc(x.p.message)}</p>` : ''}</div>`;
+      }
+      box.classList.add('on');
+      $('#s0').classList.remove('on'); $('#s1').classList.remove('on');
+      return new Promise(r => setTimeout(() => { box.classList.remove('on'); r(); }, DURATION));
+    }
 
     const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
@@ -97,6 +140,12 @@
     }
 
     async function next() {
+      if (extras.length && (shownSince >= EVERY || !items.length)) {
+        shownSince = 0;
+        $('#waiting').hidden = true;
+        await showExtra();
+        if (!items.length) { $('#waiting').hidden = false; return setTimeout(next, DURATION); }
+      }
       if (!items.length) { started = false; $('#waiting').hidden = false; return; }
       const p = pick();
       if (!p) return setTimeout(next, DURATION);
@@ -110,6 +159,7 @@
         credit.textContent = p.album || ''; credit.hidden = !p.album;
         s.classList.add('on');
         $('#s' + (1 - cur)).classList.remove('on');
+        shownSince += 1;
       }
       setTimeout(next, ok ? DURATION : 300);
     }
@@ -119,8 +169,12 @@
     });
     setTimeout(() => { $('#hint').style.opacity = 0; }, 6000);
 
+    await loadExtras();
+    setInterval(loadExtras, 60000);
     await poll();
     setInterval(poll, 8000);
+    // Sans photo pour l'instant : on fait tourner les annonces
+    if (!started && extras.length) { started = true; setTimeout(next, 2500); }
   })();
   </script>
 </body>

@@ -32,6 +32,8 @@
 
   <button id="newPill" class="pill-new" hidden>Nouvelles photos ↑</button>
 
+  <section id="partners" class="partners narrow" hidden></section>
+
   <footer class="footer">
     <a class="btn btn-primary" href="/">🤳 Retrouver mes photos avec un selfie</a>
   </footer>
@@ -41,6 +43,8 @@
   (async () => {
     const { $, $$, esc } = Gala;
     const cfg = await Gala.loadConfig();
+    Gala.startBackground(cfg.backgrounds);
+    Gala.renderPartners('#partners');
     const PAGE = 60;
     let all = [], version = 0, shown = PAGE;
     let album = '';

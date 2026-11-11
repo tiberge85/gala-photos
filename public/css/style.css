@@ -19,6 +19,7 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
+html { background: #03130f; }
 body {
   font-family: var(--sans);
   background:
@@ -229,3 +230,33 @@ select option { color: #111; }
   background: #000; color: #fff; padding: 12px 18px; border-radius: 12px; font-size: 14px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, .5); max-width: calc(100% - 32px);
 }
+
+/* Fond animé : visuels du week-end */
+.bgfx { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.bgfx img {
+  position: absolute; inset: -20px; width: calc(100% + 40px); height: calc(100% + 40px);
+  object-fit: cover; object-position: center 30%; opacity: 0; transform: scale(1.06);
+  filter: saturate(1.05) blur(1px); transition: opacity 2s ease, transform 8s ease;
+}
+.bgfx img.on { opacity: .38; transform: scale(1); }
+.bgfx .veil {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(900px 500px at 50% 0%, rgba(3, 19, 15, .35), transparent 70%),
+    linear-gradient(180deg, rgba(3, 19, 15, .55), rgba(3, 19, 15, .82) 45%, rgba(3, 19, 15, .95));
+}
+.card { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); background-color: rgba(10, 47, 37, .82); }
+
+/* Partenaires */
+.partners { margin: 34px auto 0; }
+.partners .kicker { display: block; letter-spacing: .25em; text-transform: uppercase; font-size: 11px; color: var(--accent); margin-bottom: 12px; }
+.ptrack { overflow: hidden; }
+.ptrack.scroll { -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.prow { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.ptrack.scroll .prow { flex-wrap: nowrap; justify-content: flex-start; width: max-content; animation: partners-scroll 30s linear infinite; }
+.ptrack.scroll:hover .prow { animation-play-state: paused; }
+@keyframes partners-scroll { to { transform: translateX(-50%); } }
+.partner { display: flex; flex-direction: column; align-items: center; gap: 6px; text-decoration: none; color: var(--muted); font-size: 12px; width: 120px; flex: none; }
+.partner .plogo { width: 120px; height: 72px; background: #fff; border-radius: 12px; display: grid; place-items: center; padding: 8px; box-shadow: 0 0 0 1px var(--line); }
+.partner img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.partner .pname { text-align: center; line-height: 1.2; }
