@@ -26,7 +26,45 @@
   <main id="app" class="narrow" hidden>
     <div id="modelState" class="notice warn">Chargement de la reconnaissance faciale… (une seule fois, environ 12 Mo)</div>
 
-    <section class="card mt">
+    <section class="card mt" id="watchCard">
+      <strong>📂 Dossier surveillé</strong>
+      <p class="small muted" style="margin:6px 0 12px">Choisissez le dossier où vous déversez les JPG (ex. <code>PHOTO_GALA/14_11_2026</code>).
+        Toutes les 10 secondes, les nouvelles photos sont retouchées, analysées et publiées automatiquement. Les originaux ne sont jamais modifiés.</p>
+      <div id="watchUnsupported" class="notice err" hidden>Votre navigateur ne permet pas de surveiller un dossier. Utilisez <strong>Google Chrome</strong> ou Edge sur ordinateur.</div>
+      <div class="row" id="watchButtons">
+        <button class="btn btn-primary" id="watchPick" type="button">📂 Choisir le dossier</button>
+        <button class="btn btn-ghost" id="watchResume" type="button" hidden></button>
+        <button class="btn btn-danger" id="watchStop" type="button" hidden>■ Arrêter</button>
+      </div>
+      <div id="watchStatus" class="small mt" hidden></div>
+    </section>
+
+    <section class="card">
+      <strong>✨ Retouche automatique</strong>
+      <p class="small muted" style="margin:6px 0 12px">Lumière, contraste, couleurs plus gaies et légère netteté. Réglages globaux uniquement : les visages restent fidèles.</p>
+      <div class="row">
+        <div class="grow"><label class="label" for="retouchLevel">Intensité</label>
+          <select id="retouchLevel">
+            <option value="0">Aucune retouche</option>
+            <option value="0.6">Légère</option>
+            <option value="1" selected>Normale (recommandée)</option>
+            <option value="1.4">Forte (salle très sombre)</option>
+          </select></div>
+      </div>
+      <label class="row mt" style="gap:8px;cursor:pointer">
+        <input type="checkbox" id="smartCrop" checked>
+        <span class="small">Recadrage léger guidé par les visages (resserre de 8 % maximum, ne coupe jamais un visage)</span>
+      </label>
+      <div id="preview" class="mt" hidden>
+        <div class="small muted">Dernière photo traitée :</div>
+        <div class="row mt" style="gap:8px;align-items:flex-start">
+          <figure style="margin:0;flex:1"><img id="pvBefore" alt="" style="width:100%;border-radius:8px"><figcaption class="small muted center">Avant</figcaption></figure>
+          <figure style="margin:0;flex:1"><img id="pvAfter" alt="" style="width:100%;border-radius:8px"><figcaption class="small muted center">Après</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
       <label class="label" for="album">Album</label>
       <input id="album" type="text" list="albumList" value="" maxlength="40" placeholder="Ex. : Cérémonie">
       <datalist id="albumList"></datalist>
@@ -48,7 +86,7 @@
         <span class="muted small">ou cliquez pour les choisir (sélection multiple possible)</span>
       </div>
       <input id="pick" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
-      <p class="small muted mt">Chaque photo est analysée sur cet ordinateur : les visages sont repérés pour que chaque invité retrouve ses photos avec un selfie.</p>
+      <p class="small muted mt">Vous pouvez aussi glisser des photos ici à la main : elles passent par la même retouche, puis chaque photo est analysée sur cet ordinateur pour que chaque invité retrouve ses photos avec un selfie.</p>
     </section>
 
     <section id="progressCard" class="card" hidden>
@@ -73,6 +111,7 @@
 
   <script src="/js/common.js"></script>
   <script src="/js/faces.js"></script>
+  <script src="/js/retouch.js"></script>
   <script>
   (async () => {
     const { $, esc } = Gala;
@@ -83,6 +122,19 @@
     $('#logout').onclick = () => Gala.logout(ROLE);
 
     let jobs = [], running = false, modelsReady = null, totalFaces = 0, noFace = 0;
+    // Réglages de retouche gardés sur cet ordinateur
+    try {
+      const st = JSON.parse(localStorage.getItem('gala_retouch') || '{}');
+      if (st.level !== undefined) $('#retouchLevel').value = String(st.level);
+      if (st.crop !== undefined) $('#smartCrop').checked = !!st.crop;
+    } catch {}
+    const saveRetouch = () => { try { localStorage.setItem('gala_retouch', JSON.stringify({ level: Number($('#retouchLevel').value), crop: $('#smartCrop').checked })); } catch {} };
+    $('#retouchLevel').onchange = saveRetouch; $('#smartCrop').onchange = saveRetouch;
+    const smallCopy = (src, max = 480) => {
+      const c = document.createElement('canvas'); const s = Math.min(1, max / Math.max(src.width, src.height));
+      c.width = Math.round(src.width * s); c.height = Math.round(src.height * s);
+      c.getContext('2d').drawImage(src, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.8);
+    };
 
     function log(msg, color = '') {
       const d = document.createElement('div');
@@ -106,7 +158,9 @@
       const album = $('#album').value.trim() || 'Photographe';
       const [maxDim, q] = $('#quality').value.split('|').map(Number);
       const tiles = $('#tiles').checked;
-      jobs.push(...files.map(file => ({ file, album, maxDim, q, tiles, status: 'waiting' })));
+      const retouch = Number($('#retouchLevel').value) || 0;
+      const crop = $('#smartCrop').checked;
+      jobs.push(...files.map(file => ({ file, album, maxDim, q, tiles, retouch, crop, status: 'waiting' })));
       $('#progressCard').hidden = false;
       refresh();
       start();
@@ -125,9 +179,17 @@
       if (!job.prepared) {
         try {
           job.prepared = await analyze(async () => {
-            const canvas = await Gala.faces.fileToCanvas(job.file, job.maxDim || 3000);
-            const faces = await Gala.faces.describeAll(canvas, { tiles: job.tiles });
-            const blob = job.maxDim ? await Gala.faces.canvasToJpeg(canvas, job.q) : job.file;
+            const edits = job.retouch > 0 || job.crop;
+            let canvas = await Gala.faces.fileToCanvas(job.file, job.maxDim || (edits ? 6000 : 3000));
+            const before = edits ? smallCopy(canvas) : null;
+            if (job.retouch > 0) Gala.retouch.apply(canvas, job.retouch);
+            let faces = await Gala.faces.describeAll(canvas, { tiles: job.tiles });
+            if (job.crop) ({ canvas, faces } = Gala.retouch.smartCrop(canvas, faces));
+            const blob = (job.maxDim || edits) ? await Gala.faces.canvasToJpeg(canvas, job.q || 0.92) : job.file;
+            if (edits) {
+              $('#pvBefore').src = before; $('#pvAfter').src = smallCopy(canvas);
+              $('#preview').hidden = false;
+            }
             return { faces, blob, width: canvas.width, height: canvas.height };
           });
         } catch (e) {
@@ -171,6 +233,110 @@
       $('#progressText').textContent = failed ? `Terminé : ${failed} échec(s)` : 'Toutes les photos sont publiées ✓';
       $('#retry').hidden = !failed;
       log(`— ${done} photo(s) publiée(s)`);
+    }
+
+    /* ---------- Surveillance d'un dossier (File System Access API, Chrome/Edge) ---------- */
+    const SEEN_KEY = 'gala_seen_' + location.host;
+    let seen = new Set();
+    try { seen = new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); } catch {}
+    const saveSeen = () => { try { localStorage.setItem(SEEN_KEY, JSON.stringify([...seen].slice(-20000))); } catch {} };
+    let dirHandle = null, watchTimer = null, pending = new Map(), watchCount = 0, lastScan = null;
+
+    // Garde le dossier choisi entre deux ouvertures de la page (IndexedDB)
+    const idb = (mode, fn) => new Promise((res, rej) => {
+      const open = indexedDB.open('mediart-live', 1);
+      open.onupgradeneeded = () => open.result.createObjectStore('kv');
+      open.onsuccess = () => {
+        try {
+          const tx = open.result.transaction('kv', mode); const st = tx.objectStore('kv');
+          const r = fn(st); tx.oncomplete = () => res(r && r.result); tx.onerror = () => rej(tx.error);
+        } catch (e) { rej(e); }
+      };
+      open.onerror = () => rej(open.error);
+    });
+    const saveHandle = h => idb('readwrite', st => st.put(h, 'watchDir')).catch(() => {});
+    const loadHandle = () => idb('readonly', st => st.get('watchDir')).catch(() => null);
+
+    function watchStatus(html, cls = 'notice') {
+      const el = $('#watchStatus'); el.hidden = false; el.className = `small mt ${cls}`; el.innerHTML = html;
+    }
+    function renderWatch() {
+      const on = !!watchTimer;
+      $('#watchPick').hidden = on; $('#watchStop').hidden = !on;
+      if (on) {
+        watchStatus(`<span class="live" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:6px"></span>
+          Surveillance active : <strong>${esc(dirHandle.name)}</strong> · ${watchCount} photo(s) envoyée(s) depuis l’ouverture
+          ${lastScan ? `· dernière vérification ${lastScan.toLocaleTimeString('fr-FR')}` : ''}
+          ${pending.size ? `· ${pending.size} en cours de copie` : ''}`);
+      }
+    }
+
+    async function scan() {
+      if (!dirHandle) return;
+      const fresh = [];
+      try {
+        for await (const [name, h] of dirHandle.entries()) {
+          if (h.kind !== 'file' || name.startsWith('.') || !/\.jpe?g$/i.test(name)) continue;
+          const f = await h.getFile();
+          const key = `${name}|${f.size}|${f.lastModified}`;
+          if (seen.has(key)) continue;
+          // attend que la copie du fichier soit terminée (même taille sur deux vérifications)
+          const p = pending.get(name);
+          if (!p || p.key !== key) { pending.set(name, { key }); continue; }
+          pending.delete(name); seen.add(key); fresh.push(f);
+        }
+      } catch (e) {
+        watchStatus(`⚠ Dossier inaccessible (${esc(e.message)}). Le disque est-il toujours branché ? Cliquez sur « Choisir le dossier ».`, 'notice err');
+        stopWatch(true); return;
+      }
+      lastScan = new Date();
+      if (fresh.length) {
+        fresh.sort((a, b) => a.lastModified - b.lastModified);
+        saveSeen(); watchCount += fresh.length;
+        log(`📂 ${fresh.length} nouvelle(s) photo(s) détectée(s) dans « ${dirHandle.name} »`);
+        addFiles(fresh);
+      }
+      renderWatch();
+    }
+
+    async function startWatch(handle) {
+      dirHandle = handle;
+      try { await modelsReady; } catch { return; }
+      clearInterval(watchTimer);
+      watchTimer = setInterval(scan, 10000);
+      renderWatch();
+      scan();
+      setTimeout(scan, 1500); // confirme vite les fichiers déjà présents
+    }
+    function stopWatch(keepMessage) {
+      clearInterval(watchTimer); watchTimer = null; pending.clear();
+      $('#watchPick').hidden = false; $('#watchStop').hidden = true;
+      if (!keepMessage) watchStatus('Surveillance arrêtée.', 'notice warn');
+    }
+
+    if (!('showDirectoryPicker' in window)) {
+      $('#watchUnsupported').hidden = false; $('#watchButtons').hidden = true;
+    } else {
+      $('#watchPick').onclick = async () => {
+        try {
+          const h = await window.showDirectoryPicker({ id: 'mediart-live', mode: 'read' });
+          saveHandle(h); // mémorisé pour « Reprendre » après un rechargement (sans bloquer)
+          $('#watchResume').hidden = true;
+          startWatch(h);
+        } catch (e) { if (e.name !== 'AbortError') Gala.toast(e.message, 5000); }
+      };
+      $('#watchStop').onclick = () => stopWatch();
+      loadHandle().then(h => {
+        if (!h) return;
+        const b = $('#watchResume');
+        b.textContent = `▶ Reprendre « ${h.name} »`; b.hidden = false;
+        b.onclick = async () => {
+          try {
+            if ((await h.queryPermission({ mode: 'read' })) !== 'granted' && (await h.requestPermission({ mode: 'read' })) !== 'granted') return;
+            b.hidden = true; startWatch(h);
+          } catch (e) { Gala.toast(e.message, 5000); }
+        };
+      });
     }
 
     $('#retry').onclick = () => { jobs.filter(j => j.status === 'error').forEach(j => { j.status = 'waiting'; }); start(); };

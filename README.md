@@ -80,3 +80,12 @@ Prends l'offre **Starter** de Render : l'offre gratuite se met en veille et le p
 
 Réglages (variables Render) : `BRAND_NAME` (MEDIART Live), `BRAND_SLOGAN`, `BRAND_WHATSAPP`, `BRAND_PHONE`, `BRAND_EMAIL`,
 `BRAND_FACEBOOK` (lien de la page Facebook), `BRAND_LOGO_URL` (logo officiel en image, sinon logo texte « MEDI**A**RT » avec le A rouge).
+
+## Dossier surveillé et retouche automatique
+
+Dans `/photographe` (Google Chrome sur ordinateur) :
+1. **📂 Choisir le dossier** : par exemple `PHOTO_GALA/14_11_2026`. Toutes les 10 secondes, les nouveaux JPG sont détectés (après la fin de leur copie), retouchés, analysés et publiés. Les originaux ne sont jamais modifiés. Les photos déjà envoyées ne sont jamais renvoyées, même après un rechargement de la page (bouton « Reprendre »).
+2. **✨ Retouche** : intensité Aucune / Légère / Normale / Forte. Elle règle les niveaux automatiques, l'exposition, les ombres, un contraste doux, la vibrance (les tons chair sont épargnés), une légère chaleur et une netteté légère. Ce sont uniquement des réglages globaux.
+3. **Recadrage léger** : resserre de 8 % au maximum autour des visages, sans jamais en couper un. Il est désactivable.
+
+Le soir de l'événement, empêchez le Mac de se mettre en veille. Dans le Terminal : `caffeinate -dimsu` (Ctrl + C pour arrêter).

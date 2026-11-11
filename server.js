@@ -67,7 +67,7 @@ const CONFIG = {
     whatsapp: env('BRAND_WHATSAPP', '+2250747682027'),
     phone: env('BRAND_PHONE', '0566750669'),
     email: env('BRAND_EMAIL', 'mediart94@gmail.com'),
-    facebook: env('BRAND_FACEBOOK', 'https://www.facebook.com/search/top?q=mediart'),
+    facebook: env('BRAND_FACEBOOK', 'https://www.facebook.com/mediartt/'),
     logo: env('BRAND_LOGO_URL', ''),
   },
   primaryColor: env('PRIMARY_COLOR', '#0d5c46'),
