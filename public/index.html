@@ -87,12 +87,13 @@
       <button class="btn btn-ghost small mt" id="forget" style="font-size:13px">Effacer mon empreinte de ce téléphone</button>
     </section>
 
+    <section id="programme" class="programme" hidden></section>
+    <section id="partners" class="partners" hidden></section>
+
     <div class="center mt-l" id="galleryLink" hidden>
       <a class="btn btn-ghost" href="/galerie">Voir toutes les photos de la soirée →</a>
     </div>
   </main>
-
-  <section id="partners" class="partners narrow" hidden></section>
 
   <footer class="footer">Photos officielles du photographe de l’événement.</footer>
 
@@ -104,6 +105,7 @@
     const cfg = await Gala.loadConfig();
     $('#galleryLink').hidden = !cfg.publicGallery;
     Gala.startBackground(cfg.backgrounds);
+    Gala.renderProgramme('#programme', cfg.backgrounds);
     Gala.renderPartners('#partners');
     const KEY = 'gala_face_' + location.host;
     const ZIP_CHUNK = 80;

@@ -19,10 +19,9 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-html { background: #03130f; }
-body {
-  font-family: var(--sans);
-  background:
+html {
+  background-color: #03130f;
+  background-image:
     radial-gradient(2px 2px at 12% 18%, rgba(243, 227, 163, .55), transparent 60%),
     radial-gradient(1.5px 1.5px at 78% 12%, rgba(243, 227, 163, .45), transparent 60%),
     radial-gradient(2px 2px at 88% 46%, rgba(243, 227, 163, .35), transparent 60%),
@@ -32,6 +31,11 @@ body {
     radial-gradient(1200px 700px at 50% -220px, color-mix(in srgb, var(--primary) 85%, transparent), transparent 72%),
     linear-gradient(180deg, var(--bg-2), var(--bg) 55%);
   background-attachment: fixed;
+  min-height: 100%;
+}
+body {
+  font-family: var(--sans);
+  background: transparent;
   color: var(--text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
@@ -236,14 +240,14 @@ select option { color: #111; }
 .bgfx img {
   position: absolute; inset: -20px; width: calc(100% + 40px); height: calc(100% + 40px);
   object-fit: cover; object-position: center 30%; opacity: 0; transform: scale(1.06);
-  filter: saturate(1.05) blur(1px); transition: opacity 2s ease, transform 8s ease;
+  filter: saturate(1.1); transition: opacity 2s ease, transform 8s ease;
 }
-.bgfx img.on { opacity: .38; transform: scale(1); }
+.bgfx img.on { opacity: .62; transform: scale(1); }
 .bgfx .veil {
   position: absolute; inset: 0;
   background:
     radial-gradient(900px 500px at 50% 0%, rgba(3, 19, 15, .35), transparent 70%),
-    linear-gradient(180deg, rgba(3, 19, 15, .55), rgba(3, 19, 15, .82) 45%, rgba(3, 19, 15, .95));
+    linear-gradient(180deg, rgba(3, 19, 15, .25), rgba(3, 19, 15, .55) 30%, rgba(3, 19, 15, .85) 60%, rgba(3, 19, 15, .95));
 }
 .card { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); background-color: rgba(10, 47, 37, .82); }
 
@@ -260,3 +264,16 @@ select option { color: #111; }
 .partner .plogo { width: 120px; height: 72px; background: #fff; border-radius: 12px; display: grid; place-items: center; padding: 8px; box-shadow: 0 0 0 1px var(--line); }
 .partner img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .partner .pname { text-align: center; line-height: 1.2; }
+
+/* Encart « Au programme ce week-end » */
+.programme { margin-top: 18px; text-align: center; }
+.programme .kicker { display: block; letter-spacing: .25em; text-transform: uppercase; font-size: 11px; color: var(--accent); margin-bottom: 12px; }
+.prog-track { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 4px; }
+.prog-track::-webkit-scrollbar { display: none; }
+.prog-track img {
+  flex: 0 0 calc(50% - 6px); scroll-snap-align: start; width: calc(50% - 6px); aspect-ratio: 3 / 4; object-fit: cover;
+  border-radius: 14px; box-shadow: 0 0 0 1px var(--line), 0 12px 30px rgba(0,0,0,.35); cursor: zoom-in;
+}
+.prog-dots { display: flex; gap: 6px; justify-content: center; margin-top: 10px; }
+.prog-dots span { width: 6px; height: 6px; border-radius: 50%; background: rgba(243,227,163,.3); }
+.prog-dots span.on { background: var(--accent); }

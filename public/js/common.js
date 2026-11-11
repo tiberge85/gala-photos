@@ -44,6 +44,29 @@
     }, every);
   };
 
+  /* ---------- Encart « Au programme ce week-end » ---------- */
+  G.renderProgramme = function (el, list) {
+    el = typeof el === 'string' ? G.$(el) : el;
+    if (!el || !list || !list.length) return;
+    el.innerHTML = `<span class="kicker">Au programme ce week-end</span>
+      <div class="prog-track">${list.map(src => `<img src="${G.esc(src)}" alt="" loading="lazy">`).join('')}</div>
+      ${list.length > 2 ? `<div class="prog-dots">${list.map((_, i) => `<span class="${i ? '' : 'on'}"></span>`).join('')}</div>` : ''}`;
+    el.hidden = false;
+    const track = el.querySelector('.prog-track');
+    el.querySelectorAll('img').forEach((img, i) => {
+      img.onclick = () => G.lightbox(list.map(src => ({ url: src, download: src, album: 'Programme du week-end' })), i);
+    });
+    // Défilement automatique quand il y a plus de visuels que de places
+    if (list.length > 2) {
+      let k = 0;
+      setInterval(() => {
+        k = (k + 1) % list.length;
+        track.scrollTo({ left: track.children[k].offsetLeft - track.offsetLeft, behavior: 'smooth' });
+        el.querySelectorAll('.prog-dots span').forEach((d, j) => d.classList.toggle('on', j === k));
+      }, 4000);
+    }
+  };
+
   /* ---------- Bandeau des partenaires ---------- */
   G.renderPartners = async function (el) {
     el = typeof el === 'string' ? G.$(el) : el;
