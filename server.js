@@ -40,10 +40,11 @@ const { createStorage } = require('./lib/storage');
 const env = (k, d) => (process.env[k] !== undefined && process.env[k] !== '' ? process.env[k] : d);
 const CONFIG = {
   port: Number(env('PORT', 3000)),
-  eventName: env('EVENT_NAME', 'Gala de la Jeunesse'),
-  eventSubtitle: env('EVENT_SUBTITLE', 'Un selfie suffit pour retrouver vos photos de la soirée'),
+  eventName: env('EVENT_NAME', 'Éclat des Émeraudes'),
+  eventSubtitle: env('EVENT_SUBTITLE', 'Fête de la Jeunesse 2026'),
   eventSlug: env('EVENT_SLUG', 'gala-ebpa').toLowerCase().replace(/[^a-z0-9-]/g, '-'),
-  organizer: env('ORGANIZER', ''),
+  organizer: env('ORGANIZER', 'Église Baptiste Philadelphie d’Angré'),
+  logo: env('LOGO_URL', '/img/logo.png'),
   publicUrl: env('PUBLIC_URL', '').replace(/\/$/, ''),
   albums: env('ALBUMS', 'Accueil,Cérémonie,Soirée').split(',').map(s => s.trim()).filter(Boolean),
   adminPassword: env('ADMIN_PASSWORD', env('MODERATOR_PASSWORD', 'admin')),
@@ -55,8 +56,8 @@ const CONFIG = {
   matchThreshold: Number(env('FACE_MATCH_THRESHOLD', 0.5)),
   // Visages un peu au-delà du seuil : proposés à l'invité (« Est-ce vous ? »).
   candidateMargin: Number(env('FACE_CANDIDATE_MARGIN', 0.1)),
-  primaryColor: env('PRIMARY_COLOR', '#1a3a5c'),
-  accentColor: env('ACCENT_COLOR', '#F29F2F'),
+  primaryColor: env('PRIMARY_COLOR', '#0d5c46'),
+  accentColor: env('ACCENT_COLOR', '#D4AF37'),
   maxUploadMb: Number(env('MAX_UPLOAD_MB', 12)),
   searchesPer15Min: Number(env('SEARCH_LIMIT', 120)),
   dataDir: env('DATA_DIR', path.join(__dirname, 'data')),
@@ -189,6 +190,7 @@ app.get('/api/config', (req, res) => {
     eventName: CONFIG.eventName,
     eventSubtitle: CONFIG.eventSubtitle,
     organizer: CONFIG.organizer,
+    logo: CONFIG.logo,
     albums: CONFIG.albums,
     publicGallery: CONFIG.publicGallery,
     primaryColor: CONFIG.primaryColor,

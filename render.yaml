@@ -10,9 +10,15 @@ services:
       - key: NODE_VERSION
         value: "22"
       - key: EVENT_NAME
-        value: Gala de la Jeunesse
+        value: Éclat des Émeraudes
+      - key: EVENT_SUBTITLE
+        value: Fête de la Jeunesse 2026
       - key: ORGANIZER
-        value: EBPA
+        value: Église Baptiste Philadelphie d’Angré
+      - key: PRIMARY_COLOR
+        value: "#0d5c46"
+      - key: ACCENT_COLOR
+        value: "#D4AF37"
       - key: EVENT_SLUG
         value: gala-ebpa
       - key: ALBUMS

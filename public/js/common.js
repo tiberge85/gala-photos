@@ -18,6 +18,7 @@
     G.$$('[data-event-name]').forEach(el => { el.textContent = c.eventName; });
     G.$$('[data-event-subtitle]').forEach(el => { el.textContent = c.eventSubtitle; });
     G.$$('[data-organizer]').forEach(el => { el.textContent = c.organizer; el.hidden = !c.organizer; });
+    G.$$('[data-logo]').forEach(el => { if (c.logo) { el.src = c.logo; el.hidden = false; } });
     const base = document.title;
     document.title = base ? `${base} · ${c.eventName}` : c.eventName;
     return c;

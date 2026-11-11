@@ -5,23 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>QR code à imprimer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Inter:wght@400;600;700&family=Playfair+Display:wght@700&display=swap">
   <link rel="stylesheet" href="/css/style.css">
   <style>
     .controls { padding: 20px 0; }
     .sheet { background: #fff; color: #111; margin: 0 auto 30px; box-shadow: 0 10px 40px rgba(0,0,0,.4); }
     .poster { width: 210mm; min-height: 297mm; padding: 22mm 18mm; text-align: center; display: flex; flex-direction: column; align-items: center; }
-    .poster .k { letter-spacing: .3em; text-transform: uppercase; color: var(--accent); font-weight: 700; font-size: 13pt; }
-    .poster h1 { font-family: var(--serif); font-size: 44pt; margin: 6mm 0 2mm; line-height: 1.05; color: var(--primary); }
-    .poster .sub { font-size: 16pt; color: #444; margin: 0; }
-    .poster .qr { width: 120mm; height: 120mm; margin: 12mm 0 8mm; padding: 5mm; border: 2.5mm solid var(--accent); border-radius: 8mm; }
+    .poster { background: linear-gradient(180deg, #0d5c46, #062a20); color: #F7F1E1; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .poster .logo { width: 30mm; height: 30mm; border-radius: 50%; box-shadow: 0 0 0 1mm #D4AF37; margin-bottom: 6mm; }
+    .poster .org { letter-spacing: .25em; text-transform: uppercase; font-size: 10pt; color: #F3E3A3; }
+    .poster .k { letter-spacing: .3em; text-transform: uppercase; color: var(--accent); font-weight: 700; font-size: 13pt; margin-top: 8mm; }
+    .poster h1 { font-family: var(--serif); font-size: 46pt; margin: 4mm 0 0; line-height: 1.05; color: #F3E3A3; }
+    .poster .sub { font-family: var(--script); font-size: 30pt; color: #D4AF37; margin: 0; }
+    .poster .qr { width: 110mm; height: 110mm; margin: 10mm 0 8mm; padding: 5mm; background: #fff; border: 2.5mm solid var(--accent); border-radius: 8mm; }
     .steps { display: flex; gap: 8mm; justify-content: center; font-size: 13pt; }
     .steps div { max-width: 52mm; }
-    .steps b { display: block; font-size: 22pt; color: var(--accent); }
-    .poster .u { margin-top: auto; font-size: 13pt; color: #555; }
+    .steps b { display: block; font-size: 22pt; color: var(--accent); font-family: var(--serif); }
+    .poster .u { margin-top: auto; font-size: 13pt; color: #F3E3A3; }
     .cards { width: 210mm; min-height: 297mm; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 148.5mm; }
     .tcard { border: 0.3mm dashed #bbb; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 8mm; }
     .tcard h2 { font-family: var(--serif); color: var(--primary); margin: 0; font-size: 20pt; line-height: 1.1; }
+    .tcard .logo { width: 16mm; height: 16mm; border-radius: 50%; margin-bottom: 3mm; box-shadow: 0 0 0 .6mm #D4AF37; }
+    .tcard .sub { font-family: var(--script); color: #B8912F; font-size: 18pt; }
     .tcard .qr { width: 62mm; height: 62mm; margin: 6mm 0; }
     .tcard p { margin: 0; font-size: 12pt; }
     .tcard small { color: #666; margin-top: 3mm; }
@@ -46,9 +51,11 @@
   </div>
 
   <div id="poster" class="sheet poster">
-    <div class="k">Retrouvez vos photos</div>
+    <img class="logo" data-logo alt="" hidden>
+    <div class="org" data-organizer></div>
     <h1 data-event-name>Gala</h1>
     <p class="sub" data-event-subtitle></p>
+    <div class="k">Retrouvez vos photos</div>
     <img class="qr" alt="QR code">
     <div class="steps">
       <div><b>1</b>Scannez ce QR code avec votre téléphone</div>
@@ -72,7 +79,9 @@
     $$('.poster .qr').forEach(i => { i.src = qr; });
     $('#cards').innerHTML = Array.from({ length: 4 }, () => `
       <div class="tcard">
+        ${cfg.logo ? `<img class="logo" src="${esc(cfg.logo)}" alt="">` : ''}
         <h2>${esc(cfg.eventName)}</h2>
+        <div class="sub">${esc(cfg.eventSubtitle)}</div>
         <img class="qr" src="${qr}" alt="QR code">
         <p><strong>Scannez, faites un selfie<br>et retrouvez vos photos</strong></p>
         <small>${esc(host)} · sans application</small>

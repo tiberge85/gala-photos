@@ -1,12 +1,15 @@
 :root {
-  --primary: #1a3a5c;
-  --accent: #F29F2F;
-  --bg: #0b1420;
-  --bg-2: #111d2d;
-  --card: #15233a;
-  --line: rgba(255, 255, 255, .09);
-  --text: #f3efe6;
-  --muted: #a9b3c2;
+  /* Charte « Éclat des Émeraudes » : vert émeraude, or, champagne, ivoire */
+  --primary: #0d5c46;
+  --accent: #D4AF37;
+  --accent-light: #F3E3A3;
+  --bg: #03130f;
+  --bg-2: #062a20;
+  --card: #0a2f25;
+  --line: rgba(212, 175, 55, .22);
+  --text: #F7F1E1;
+  --muted: #b7c8bd;
+  --script: "Great Vibes", "Snell Roundhand", cursive;
   --ok: #2FA85B;
   --danger: #d9534f;
   --radius: 16px;
@@ -19,8 +22,15 @@ html, body { margin: 0; }
 body {
   font-family: var(--sans);
   background:
-    radial-gradient(1200px 600px at 50% -200px, color-mix(in srgb, var(--primary) 70%, transparent), transparent 70%),
-    var(--bg);
+    radial-gradient(2px 2px at 12% 18%, rgba(243, 227, 163, .55), transparent 60%),
+    radial-gradient(1.5px 1.5px at 78% 12%, rgba(243, 227, 163, .45), transparent 60%),
+    radial-gradient(2px 2px at 88% 46%, rgba(243, 227, 163, .35), transparent 60%),
+    radial-gradient(1.5px 1.5px at 22% 64%, rgba(243, 227, 163, .3), transparent 60%),
+    radial-gradient(1.5px 1.5px at 60% 82%, rgba(243, 227, 163, .3), transparent 60%),
+    radial-gradient(900px 520px at 85% -120px, rgba(212, 175, 55, .16), transparent 70%),
+    radial-gradient(1200px 700px at 50% -220px, color-mix(in srgb, var(--primary) 85%, transparent), transparent 72%),
+    linear-gradient(180deg, var(--bg-2), var(--bg) 55%);
+  background-attachment: fixed;
   color: var(--text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
@@ -40,16 +50,29 @@ button, input, select { font: inherit; }
   display: inline-block; letter-spacing: .28em; text-transform: uppercase;
   font-size: 11px; color: var(--accent); margin-bottom: 10px;
 }
+.hero .logo {
+  width: 78px; height: 78px; border-radius: 50%; margin: 0 auto 14px;
+  box-shadow: 0 0 0 2px var(--accent), 0 0 30px rgba(212, 175, 55, .35);
+}
 .hero h1 {
   font-family: var(--serif); font-weight: 700; margin: 0;
-  font-size: clamp(30px, 7vw, 52px); line-height: 1.08;
+  font-size: clamp(30px, 7.5vw, 54px); line-height: 1.08; letter-spacing: .01em;
+  background: linear-gradient(180deg, #FFF6D6 0%, var(--accent-light) 35%, var(--accent) 75%, #A8822A 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .hero p { color: var(--muted); margin: 10px auto 0; max-width: 34ch; }
-.ornament { width: 72px; height: 2px; background: var(--accent); margin: 16px auto 0; border-radius: 2px; }
+.hero p.script, .script {
+  font-family: var(--script); color: var(--accent); font-size: clamp(26px, 6vw, 36px);
+  line-height: 1.1; margin-top: 6px; max-width: none;
+}
+.ornament {
+  width: 120px; height: 1px; margin: 18px auto 0;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
 
 /* Cartes */
 .card {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, white 3%), var(--card));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 88%, white 4%), var(--card));
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 20px;
@@ -75,7 +98,10 @@ select option { color: #111; }
 }
 .btn:active { transform: scale(.98); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
-.btn-primary { background: var(--accent); color: #1b1203; }
+.btn-primary {
+  background: linear-gradient(180deg, #F0D78A, var(--accent) 55%, #B8912F);
+  color: #062a20; box-shadow: 0 6px 18px rgba(212, 175, 55, .25);
+}
 .btn-primary:hover { filter: brightness(1.06); }
 .btn-ok { background: var(--ok); color: #fff; }
 .btn-danger { background: var(--danger); color: #fff; }
@@ -96,7 +122,7 @@ select option { color: #111; }
   border: 1px solid var(--line); background: rgba(255, 255, 255, .04); color: var(--text);
   padding: 8px 14px; border-radius: 999px; cursor: pointer; font-size: 14px;
 }
-.chip.active { background: var(--accent); color: #1b1203; border-color: var(--accent); font-weight: 600; }
+.chip.active { background: var(--accent); color: #062a20; border-color: var(--accent); font-weight: 600; }
 .chip .count { opacity: .75; margin-left: 4px; }
 
 /* File d'envoi */
@@ -120,7 +146,7 @@ select option { color: #111; }
   border-radius: 12px; padding: 14px; background: rgba(47, 168, 91, .12);
   border: 1px solid rgba(47, 168, 91, .35);
 }
-.notice.warn { background: rgba(242, 159, 47, .12); border-color: rgba(242, 159, 47, .4); }
+.notice.warn { background: rgba(212, 175, 55, .12); border-color: rgba(212, 175, 55, .45); }
 .notice.err { background: rgba(217, 83, 79, .12); border-color: rgba(217, 83, 79, .4); }
 
 /* Galerie (maçonnerie) */
@@ -136,7 +162,7 @@ select option { color: #111; }
   position: absolute; left: 8px; top: 8px; font-size: 11px; font-weight: 700;
   background: rgba(0, 0, 0, .6); color: #fff; padding: 3px 8px; border-radius: 999px; letter-spacing: .02em;
 }
-.tile .badge.pro { background: var(--accent); color: #1b1203; }
+.tile .badge.pro { background: var(--accent); color: #062a20; }
 .empty { text-align: center; padding: 60px 10px; color: var(--muted); }
 
 .toolbar {
@@ -146,7 +172,7 @@ select option { color: #111; }
 
 .pill-new {
   position: fixed; left: 50%; transform: translateX(-50%); bottom: 22px; z-index: 20;
-  background: var(--accent); color: #1b1203; font-weight: 700; border: 0; border-radius: 999px;
+  background: var(--accent); color: #062a20; font-weight: 700; border: 0; border-radius: 999px;
   padding: 12px 18px; box-shadow: 0 10px 30px rgba(0, 0, 0, .4); cursor: pointer;
 }
 
@@ -177,7 +203,7 @@ select option { color: #111; }
 .mod-card .sel {
   position: absolute; top: 8px; left: 8px; width: 26px; height: 26px; border-radius: 7px;
   background: rgba(0, 0, 0, .55); border: 2px solid #fff; cursor: pointer; display: grid; place-items: center;
-  font-weight: 900; color: #1b1203;
+  font-weight: 900; color: #062a20;
 }
 .mod-card.selected .sel { background: var(--accent); border-color: var(--accent); }
 .mod-card .meta { font-size: 12px; color: var(--muted); padding: 8px 10px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -192,7 +218,7 @@ select option { color: #111; }
   border: 2px dashed color-mix(in srgb, var(--accent) 60%, transparent); border-radius: var(--radius);
   padding: 34px 16px; text-align: center; cursor: pointer; transition: background .15s;
 }
-.drop.over { background: rgba(242, 159, 47, .1); }
+.drop.over { background: rgba(212, 175, 55, .1); }
 .log { max-height: 220px; overflow: auto; font-size: 13px; color: var(--muted); }
 
 .footer { text-align: center; color: var(--muted); font-size: 12px; padding: 30px 0 40px; }

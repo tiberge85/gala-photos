@@ -6,10 +6,10 @@
   <meta name="robots" content="noindex">
   <title>Diaporama</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Inter:wght@400;600;700&family=Playfair+Display:wght@700&display=swap">
   <link rel="stylesheet" href="/css/style.css">
   <style>
-    html, body { height: 100%; overflow: hidden; background: #000; cursor: none; }
+    html, body { height: 100%; overflow: hidden; background: radial-gradient(1200px 700px at 50% 20%, #0d5c46, #03130f 70%); cursor: none; }
     .stage { position: fixed; inset: 0; }
     .slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1.2s ease; }
     .slide.on { opacity: 1; }
@@ -19,14 +19,17 @@
     .credit.pro { background: var(--accent); color: #1b1203; font-weight: 700; }
     .bar {
       position: fixed; left: 0; right: 0; bottom: 0; height: 120px; display: flex; align-items: center; gap: 22px;
-      padding: 0 32px; background: linear-gradient(transparent, rgba(0,0,0,.85) 35%);
+      padding: 0 32px; background: linear-gradient(transparent, rgba(3,19,15,.92) 35%);
     }
     .bar .qr { width: 92px; height: 92px; background: #fff; border-radius: 10px; padding: 6px; }
-    .bar h2 { font-family: var(--serif); margin: 0; font-size: 34px; }
+    .bar h2 { font-family: var(--serif); margin: 0; font-size: 34px; color: var(--accent-light); }
+    .bar .logo { width: 72px; height: 72px; border-radius: 50%; box-shadow: 0 0 0 2px var(--accent); }
     .bar p { margin: 2px 0 0; color: var(--accent); font-size: 20px; font-weight: 600; }
     .bar .url { margin-left: auto; color: var(--muted); font-size: 18px; }
     .waiting { position: fixed; inset: 0; display: grid; place-items: center; text-align: center; padding-bottom: 120px; }
-    .waiting h1 { font-family: var(--serif); font-size: 64px; margin: 0; }
+    .waiting h1 { font-family: var(--serif); font-size: 64px; margin: 0; color: var(--accent-light); }
+    .waiting .script { font-size: 44px; }
+    .waiting img { width: 120px; height: 120px; border-radius: 50%; margin: 0 auto 20px; display: block; box-shadow: 0 0 0 3px var(--accent), 0 0 40px rgba(212,175,55,.4); }
     .waiting p { color: var(--muted); font-size: 24px; }
     .hint { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.6); padding: 8px 14px; border-radius: 10px; font-size: 14px; transition: opacity .5s; }
   </style>
@@ -37,9 +40,10 @@
     <div class="slide" id="s1"><div class="bg"></div><img alt=""><span class="credit"></span></div>
   </div>
   <div class="waiting" id="waiting">
-    <div><h1 data-event-name>Gala</h1><p>Les photos du photographe apparaîtront ici</p></div>
+    <div><img data-logo alt="" hidden><h1 data-event-name>Gala</h1><p class="script" data-event-subtitle></p><p>Les photos du photographe apparaîtront ici</p></div>
   </div>
   <div class="bar">
+    <img class="logo" data-logo alt="" hidden>
     <img class="qr" id="qr" alt="QR code">
     <div>
       <h2 data-event-name>Gala</h2>
