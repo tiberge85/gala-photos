@@ -30,6 +30,13 @@
     .tcard .qr { width: 62mm; height: 62mm; margin: 6mm 0; }
     .tcard p { margin: 0; font-size: 12pt; }
     .tcard small { color: #666; margin-top: 3mm; }
+    .poster .brand { margin-top: 8mm; display: flex; flex-direction: column; align-items: center; gap: 2mm; color: #F3E3A3; font-size: 11pt; }
+    .poster .brand .row1 { display: flex; align-items: center; gap: 3mm; }
+    .poster .brand .ml-logo { font-size: 18pt; }
+    .poster .brand img { width: 9mm; height: 9mm; }
+    .tcard .tb { margin-top: 3mm; font-size: 9pt; color: #444; display: flex; align-items: center; gap: 2mm; }
+    .tcard .tb .ml-logo { color: #111; font-size: 11pt; }
+    .tcard .tb img { width: 5mm; height: 5mm; }
     @media print {
       @page { size: A4; margin: 0; }
       body { background: #fff !important; }
@@ -63,6 +70,7 @@
       <div><b>3</b>Téléchargez toutes les photos où vous apparaissez</div>
     </div>
     <div class="u" id="u1"></div>
+    <div class="brand" id="brandBlock"></div>
   </div>
 
   <div id="cards" class="sheet cards" hidden></div>
@@ -85,7 +93,11 @@
         <img class="qr" src="${qr}" alt="QR code">
         <p><strong>Scannez, faites un selfie<br>et retrouvez vos photos</strong></p>
         <small>${esc(host)} · sans application</small>
+        <div class="tb"><img src="/img/mediart-icon.svg" alt="">Service ${Gala.brandLogo()}</div>
       </div>`).join('');
+    const L = Gala.brandLinks();
+    $('#brandBlock').innerHTML = `<div class="row1"><img src="/img/mediart-icon.svg" alt="">Service proposé par ${Gala.brandLogo()}</div>
+      <div>Vous aussi, offrez-le à vos invités · WhatsApp ${esc(L.whatsappLabel)}</div>`;
     $('#mode').addEventListener('click', e => {
       const b = e.target.closest('.chip'); if (!b) return;
       $$('#mode .chip').forEach(c => c.classList.toggle('active', c === b));

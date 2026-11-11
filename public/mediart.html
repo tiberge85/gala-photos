@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0b0b">
+  <title>MEDIART Live — vos invités retrouvent leurs photos en temps réel</title>
+  <meta name="description" content="MEDIART Live : partage des photos d'événement en temps réel. Vos invités font un selfie et retrouvent toutes leurs photos, sans application. Mariages, galas, anniversaires, conférences.">
+  <meta property="og:title" content="MEDIART Live — vos photos d'événement en temps réel">
+  <meta property="og:description" content="Un selfie suffit : chaque invité retrouve ses photos pendant la soirée. Par MEDIART, une vision inspirée.">
+  <link rel="icon" type="image/svg+xml" href="/img/mediart-icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Inter:wght@400;600;700;800&family=Playfair+Display:wght@700&display=swap">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    html { background: #0b0b0b !important; background-image: radial-gradient(900px 500px at 80% -100px, rgba(229,57,53,.22), transparent 70%), radial-gradient(800px 500px at 0% 20%, rgba(255,255,255,.05), transparent 70%) !important; }
+    :root { --accent: #E53935; --accent-light: #ff8a80; --line: rgba(255,255,255,.1); --card: #141414; --muted: #b5b5b5; }
+    .m-hero { text-align: center; padding: 44px 0 10px; }
+    .m-hero .icon { width: 84px; height: 84px; }
+    .m-hero .ml-logo { font-size: clamp(38px, 9vw, 64px); margin-top: 14px; }
+    .m-hero .slogan { font-family: var(--script); color: #ff8a80; font-size: 34px; margin-top: 4px; }
+    .m-hero h1 { font-family: var(--serif); font-size: clamp(26px, 5.5vw, 40px); margin: 26px auto 0; max-width: 20ch; line-height: 1.15; color: #fff; }
+    .m-hero p { color: var(--muted); max-width: 46ch; margin: 14px auto 0; }
+    .m-cta { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 22px; }
+    .m-sec { margin-top: 34px; }
+    .m-sec h2 { font-family: var(--serif); color: #fff; font-size: 26px; text-align: center; margin: 0 0 16px; }
+    .steps-m { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+    .step-m { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+    .step-m b { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: #fff; font-family: var(--serif); }
+    .step-m h3 { margin: 10px 0 4px; font-size: 17px; color: #fff; }
+    .step-m p { margin: 0; color: var(--muted); font-size: 14px; }
+    .feat { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+    .feat div { display: flex; gap: 10px; align-items: flex-start; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; color: #ddd; font-size: 14px; }
+    .feat span { font-size: 20px; }
+    .tags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .tags span { border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; color: #ddd; font-size: 14px; background: rgba(255,255,255,.03); }
+    .contact { text-align: center; background: linear-gradient(160deg, #1a1a1a, #0f0f0f); border: 1px solid rgba(229,57,53,.45); border-radius: 20px; padding: 26px 18px; }
+    .contact .lines { color: #ddd; margin-top: 12px; line-height: 1.8; }
+    .contact .lines a { color: #fff; }
+    .demo { text-align: center; color: var(--muted); font-size: 14px; }
+    .demo a { color: #ff8a80; }
+  </style>
+</head>
+<body>
+  <main class="wrap" style="max-width:900px">
+    <header class="m-hero">
+      <img class="icon" src="/img/mediart-icon.svg" alt="">
+      <div id="logo"></div>
+      <div class="slogan" id="slogan"></div>
+      <h1>Vos invités retrouvent leurs photos en temps réel</h1>
+      <p>Pendant l’événement, notre photographe publie ses photos au fil de la soirée. Chaque invité scanne un QR code,
+        fait un selfie et retrouve <strong style="color:#fff">toutes les photos où il apparaît</strong>, prêtes à télécharger. Sans application.</p>
+      <div class="m-cta" id="cta"></div>
+    </header>
+
+    <section class="m-sec">
+      <h2>Comment ça marche</h2>
+      <div class="steps-m">
+        <div class="step-m"><b>1</b><h3>Nous photographions</h3><p>Le photographe MEDIART couvre votre événement et publie les photos en direct.</p></div>
+        <div class="step-m"><b>2</b><h3>Vos invités scannent</h3><p>Un QR code sur les tables et à l’entrée, puis un selfie, sans compte ni application.</p></div>
+        <div class="step-m"><b>3</b><h3>Chacun reçoit ses photos</h3><p>La reconnaissance faciale par IA retrouve ses photos ; il les télécharge en un geste.</p></div>
+      </div>
+    </section>
+
+    <section class="m-sec">
+      <h2>Ce qui est inclus</h2>
+      <div class="feat">
+        <div><span>🤳</span>Recherche par selfie, le selfie ne quitte jamais le téléphone</div>
+        <div><span>📺</span>Diaporama en direct sur écran géant pendant la soirée</div>
+        <div><span>🎨</span>Pages aux couleurs de votre événement : logo, visuels, programme</div>
+        <div><span>🤝</span>Mise en avant de vos partenaires et sponsors</div>
+        <div><span>⬇️</span>Téléchargement photo par photo ou en un seul fichier</div>
+        <div><span>🖨️</span>Affiches et cartes de table QR code prêtes à imprimer</div>
+      </div>
+    </section>
+
+    <section class="m-sec">
+      <h2>Pour tous vos événements</h2>
+      <div class="tags">
+        <span>Mariages</span><span>Dots & fiançailles</span><span>Anniversaires</span><span>Baptêmes</span><span>Galas & soirées</span>
+        <span>Conférences</span><span>Séminaires d’entreprise</span><span>Remises de diplômes</span><span>Événements d’église</span><span>Concerts</span>
+      </div>
+    </section>
+
+    <section class="m-sec contact">
+      <h2 style="margin-bottom:4px">Parlons de votre événement</h2>
+      <p class="muted" style="margin:0">Devis rapide, installation clé en main.</p>
+      <div class="m-cta" id="cta2"></div>
+      <div class="lines" id="lines"></div>
+    </section>
+
+    <p class="demo m-sec" id="demo"></p>
+    <footer class="footer"><span id="copy"></span></footer>
+  </main>
+
+  <script src="/js/common.js"></script>
+  <script>
+  (async () => {
+    const { $, esc } = Gala;
+    document.body.setAttribute('data-keep-title', '');
+    const cfg = await Gala.loadConfig();
+    document.documentElement.style.setProperty('--accent', '#E53935');
+    document.documentElement.style.setProperty('--accent-light', '#ff8a80');
+    const b = Gala.brand(), L = Gala.brandLinks();
+    $('#logo').innerHTML = Gala.brandLogo('lg');
+    $('#slogan').textContent = b.slogan || '';
+    const buttons = `${L.whatsapp ? `<a class="btn btn-wa btn-xl" href="${L.whatsapp}" target="_blank" rel="noopener">💬 Écrire sur WhatsApp</a>` : ''}
+      ${L.tel ? `<a class="btn btn-ghost btn-xl" href="${L.tel}">📞 Appeler</a>` : ''}`;
+    $('#cta').innerHTML = buttons;
+    $('#cta2').innerHTML = buttons;
+    $('#lines').innerHTML = [
+      L.whatsappLabel && `WhatsApp : <a href="${L.whatsapp}" target="_blank" rel="noopener">${esc(L.whatsappLabel)}</a>`,
+      L.telLabel && `Téléphone : <a href="${L.tel}">${esc(L.telLabel)}</a>`,
+      b.email && `E-mail : <a href="${L.mail}">${esc(b.email)}</a>`,
+      L.facebook && `Facebook : <a href="${esc(L.facebook)}" target="_blank" rel="noopener">${esc(b.company || 'MEDIART')}</a>`,
+    ].filter(Boolean).join('<br>');
+    $('#demo').innerHTML = `En ce moment : <a href="/">${esc(cfg.eventName)}</a> — ${esc(cfg.eventSubtitle)}, propulsé par ${esc(b.name)}.`;
+    $('#copy').textContent = `© ${new Date().getFullYear()} ${b.company || 'MEDIART'} · ${b.slogan || ''}`;
+  })();
+  </script>
+</body>
+</html>

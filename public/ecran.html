@@ -25,7 +25,22 @@
     .bar h2 { font-family: var(--serif); margin: 0; font-size: 34px; color: var(--accent-light); }
     .bar .logo { width: 72px; height: 72px; border-radius: 50%; box-shadow: 0 0 0 2px var(--accent); }
     .bar p { margin: 2px 0 0; color: var(--accent); font-size: 20px; font-weight: 600; }
-    .bar .url { margin-left: auto; color: var(--muted); font-size: 18px; }
+    .bar .url { margin-left: auto; color: var(--muted); font-size: 16px; text-align: right; }
+    .bar .powered { display: flex; align-items: center; gap: 8px; justify-content: flex-end; margin-bottom: 4px; color: var(--muted); font-size: 14px; }
+    .bar .powered .ml-logo { font-size: 20px; }
+    .bar .powered img { width: 26px; height: 26px; }
+    .inter .mcard { position: relative; text-align: center; background: linear-gradient(160deg, #161616, #0b0b0b); border: 2px solid rgba(229,57,53,.6);
+      border-radius: 26px; padding: 40px 60px; box-shadow: 0 30px 80px rgba(0,0,0,.6); max-width: 900px; display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: center; text-align: left; }
+    .inter .mcard .ml-logo { font-size: 54px; }
+    .inter .mcard .head { display: flex; align-items: center; gap: 16px; }
+    .inter .mcard .head img { width: 64px; height: 64px; }
+    .inter .mcard .slogan { font-family: var(--script); color: #ff8a80; font-size: 34px; margin-top: 6px; }
+    .inter .mcard h3 { font-family: var(--serif); color: #fff; font-size: 34px; margin: 22px 0 8px; line-height: 1.2; }
+    .inter .mcard p { color: #cfcfcf; font-size: 20px; margin: 0; }
+    .inter .mcard .wa { margin-top: 18px; font-size: 26px; color: #25D366; font-weight: 700; }
+    .inter .mcard .q { background: #fff; padding: 10px; border-radius: 14px; width: 190px; height: 190px; }
+    .inter .mcard .q img { width: 100%; height: 100%; }
+    .inter .mcard .qcap { color: var(--muted); font-size: 14px; text-align: center; margin-top: 8px; }
     .waiting { position: fixed; inset: 0; display: grid; place-items: center; text-align: center; padding-bottom: 120px; }
     .waiting h1 { font-family: var(--serif); font-size: 64px; margin: 0; color: var(--accent-light); }
     .waiting .script { font-size: 44px; }
@@ -42,6 +57,28 @@
     .inter .pcard .lg img { display: block; width: auto; height: auto; max-width: calc(min(560px, 60vw) - 60px); max-height: calc(min(300px, 32vh) - 60px); object-fit: contain; }
     .inter .pcard h3 { font-family: var(--serif); font-size: 44px; color: var(--accent-light); margin: 26px 0 6px; }
     .inter .pcard p { font-size: 22px; color: var(--muted); margin: 0; max-width: 40ch; }
+    /* Proclamation des nominations */
+    .reveal { position: fixed; inset: 0; z-index: 5; display: none; place-items: center; text-align: center;
+      background: radial-gradient(1000px 700px at 50% 35%, #0d5c46, #03130f 75%); cursor: none; overflow: hidden; }
+    .reveal.on { display: grid; }
+    .reveal .rk { letter-spacing: .35em; text-transform: uppercase; color: var(--accent); font-size: 20px; }
+    .reveal h1 { font-family: var(--serif); color: var(--accent-light); font-size: clamp(40px, 5vw, 72px); margin: 14px 0 6px; line-height: 1.1; }
+    .reveal .rs { font-family: var(--script); color: var(--accent); font-size: 40px; }
+    .reveal .suspense { font-size: 34px; color: var(--text); margin-top: 50px; }
+    .reveal .suspense span { animation: blink 1s infinite; }
+    @keyframes blink { 50% { opacity: .15; } }
+    .reveal .winner { margin-top: 30px; animation: pop .9s cubic-bezier(.2, 1.6, .4, 1) both; }
+    @keyframes pop { from { transform: scale(.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .reveal .winner .wp { width: 240px; height: 240px; border-radius: 50%; object-fit: cover; margin: 0 auto; display: grid; place-items: center;
+      box-shadow: 0 0 0 6px var(--accent), 0 0 80px rgba(212,175,55,.6); background: #062a20; font-family: var(--serif); font-size: 100px; color: var(--accent); }
+    .reveal .winner .wn { font-family: var(--serif); font-size: 64px; color: #fff; margin-top: 26px; text-shadow: 0 0 30px rgba(212,175,55,.6); }
+    .reveal .winner .wd { font-size: 26px; color: var(--accent-light); margin-top: 4px; }
+    .reveal .winner .wv { font-size: 20px; color: var(--muted); margin-top: 10px; }
+    .reveal .others { display: flex; gap: 40px; justify-content: center; margin-top: 30px; color: var(--muted); font-size: 20px; }
+    .reveal .others b { color: var(--accent-light); }
+    .confetti { position: absolute; top: -20px; width: 10px; height: 16px; opacity: .9; animation: fall linear forwards; }
+    @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
+    .votes-count { color: var(--accent-light); font-size: 18px; margin-left: 18px; }
     .hint { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.6); padding: 8px 14px; border-radius: 10px; font-size: 14px; transition: opacity .5s; }
   </style>
 </head>
@@ -50,6 +87,7 @@
     <div class="slide" id="s0"><div class="bg"></div><img alt=""><span class="credit"></span></div>
     <div class="slide" id="s1"><div class="bg"></div><img alt=""><span class="credit"></span></div>
   </div>
+  <div class="reveal" id="reveal"><div id="revealBody"></div></div>
   <div class="inter" id="inter"><div class="ibg"></div><div class="icontent"></div></div>
   <div class="waiting" id="waiting">
     <div><img data-logo alt="" hidden><h1 data-event-name>Gala</h1><p class="script" data-event-subtitle></p><p>Les photos du photographe apparaîtront ici</p></div>
@@ -61,7 +99,7 @@
       <h2 data-event-name>Gala</h2>
       <p>Scannez, faites un selfie, retrouvez vos photos</p>
     </div>
-    <div class="url" id="url"></div>
+    <div class="url"><div class="powered" id="powered"></div><span id="url"></span><span class="votes-count" id="votesCount"></span></div>
   </div>
   <div class="hint" id="hint">Cliquez pour passer en plein écran</div>
 
@@ -74,6 +112,7 @@
     const DURATION = Math.max(3, Number(params.get('d')) || 7) * 1000;
         $('#qr').src = '/api/qr.svg?path=/';
     $('#url').textContent = cfg.publicUrl.replace(/^https?:\/\//, '');
+    $('#powered').innerHTML = `Propulsé par <img src="/img/mediart-icon.svg" alt="">${Gala.brandLogo()}`;
 
     let items = [], version = 0, known = new Set(), fresh = [], cycle = [], cur = 0, started = false;
     // Annonces entre les photos : visuels du week-end + partenaires
@@ -90,12 +129,23 @@
         if (promos[i]) out.push(promos[i]);
         if (partners[i]) out.push(partners[i]);
       }
+      out.push({ type: 'mediart' }); // annonce MEDIART à chaque tour
       extras = out;
     }
     function showExtra() {
       const x = extras[extraIdx++ % extras.length];
       const box = $('#inter');
-      if (x.type === 'promo') {
+      if (x.type === 'mediart') {
+        const b = Gala.brand(), L = Gala.brandLinks();
+        box.querySelector('.ibg').style.backgroundImage = 'none';
+        box.querySelector('.icontent').innerHTML = `<div class="mcard"><div>
+            <div class="head"><img src="/img/mediart-icon.svg" alt="">${Gala.brandLogo()}</div>
+            <div class="slogan">${Gala.esc(b.slogan || '')}</div>
+            <h3>Vous aussi, offrez à vos invités<br>leurs photos en temps réel</h3>
+            <p>Mariages · anniversaires · galas · conférences · séminaires</p>
+            ${L.whatsappLabel ? `<div class="wa">💬 WhatsApp ${Gala.esc(L.whatsappLabel)}</div>` : ''}
+          </div><div><div class="q"><img src="/api/qr.svg?path=/mediart" alt=""></div><div class="qcap">Scannez pour en savoir plus</div></div></div>`;
+      } else if (x.type === 'promo') {
         box.querySelector('.ibg').style.backgroundImage = `url("${x.src}")`;
         box.querySelector('.icontent').innerHTML = `<img class="promo" src="${x.src}" alt="">`;
       } else {
@@ -169,6 +219,57 @@
       if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
     });
     setTimeout(() => { $('#hint').style.opacity = 0; }, 6000);
+
+    /* ---------- Proclamation des nominations ---------- */
+    let lastReveal = null, revealBusy = false;
+    function confetti() {
+      const box = $('#reveal'); const colors = ['#D4AF37', '#F3E3A3', '#0d5c46', '#ffffff', '#2FA85B'];
+      for (let i = 0; i < 140; i++) {
+        const c = document.createElement('span'); c.className = 'confetti';
+        c.style.left = Math.random() * 100 + 'vw'; c.style.background = colors[i % colors.length];
+        c.style.animationDuration = (3 + Math.random() * 3) + 's'; c.style.animationDelay = Math.random() * 1.5 + 's';
+        box.appendChild(c); setTimeout(() => c.remove(), 8000);
+      }
+    }
+    const photoOf = n => n.photo ? `<img class="wp" src="${Gala.esc(n.photo)}" alt="">` : `<div class="wp">${Gala.esc(n.name.charAt(0))}</div>`;
+    async function playReveal(r, animate) {
+      revealBusy = true;
+      const box = $('#reveal'), body = $('#revealBody');
+      const head = `<div class="rk">🏆 Nominations · ${Gala.esc(cfg.eventName)}</div><h1>${Gala.esc(r.category.title)}</h1>${r.category.subtitle ? `<div class="rs">${Gala.esc(r.category.subtitle)}</div>` : ''}`;
+      box.classList.add('on');
+      const [w, second, third] = r.podium;
+      if (animate) {
+        body.innerHTML = head + `<div class="suspense">Et le gagnant est<span>…</span></div>`;
+        await Gala.sleep(5000);
+      }
+      if (!w || !w.votes) {
+        body.innerHTML = head + `<div class="suspense">Aucun vote enregistré pour cette catégorie.</div>`;
+      } else {
+        body.innerHTML = head + `<div class="winner">${photoOf(w)}<div class="wn">${Gala.esc(w.name)}</div>
+          ${w.detail ? `<div class="wd">${Gala.esc(w.detail)}</div>` : ''}<div class="wv">${w.votes} vote${w.votes > 1 ? 's' : ''} sur ${r.total}</div></div>
+          <div class="others">${[second, third].filter(x => x && x.votes).map((x, i) => `<div>${i ? '3ᵉ' : '2ᵉ'} · <b>${Gala.esc(x.name)}</b> (${x.votes})</div>`).join('')}</div>`;
+        if (animate) confetti();
+      }
+      revealBusy = false;
+    }
+    async function pollVotes() {
+      try {
+        const d = await Gala.api('/api/vote/live');
+        $('#votesCount').textContent = d.voters ? `· 🗳 ${d.voters} votant${d.voters > 1 ? 's' : ''}` : '';
+        const key = d.reveal ? d.reveal.at + ':' + d.reveal.category.id : null;
+        if (key !== lastReveal && !revealBusy) {
+          const first = lastReveal === null && !window.__revealInit;
+          window.__revealInit = true;
+          lastReveal = key;
+          if (d.reveal) playReveal(d.reveal, !first || (Date.now() - d.reveal.at) < 15000);
+          else $('#reveal').classList.remove('on');
+        }
+      } catch {}
+    }
+    if (cfg.votesEnabled) {
+      await pollVotes();
+      setInterval(pollVotes, 3000);
+    }
 
     await loadExtras();
     setInterval(loadExtras, 60000);

@@ -11,9 +11,26 @@
   <style>
     .fc { position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,.7); font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
     .fc.zero { background: var(--danger); }
+    .toolbar { position: static; background: none; }
+    .vcat { border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-top: 14px; background: rgba(255,255,255,.03); }
+    .vcat h3 { margin: 0; font-family: var(--serif); color: var(--accent-light); font-size: 20px; }
+    .vcat .sub { color: var(--muted); font-size: 13px; }
+    .vrow { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,.06); }
+    .vrow img, .vrow .ini { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: none; background: var(--bg-2); display: grid; place-items: center; color: var(--accent); font-weight: 700; }
+    .vbar { height: 6px; background: rgba(255,255,255,.08); border-radius: 9px; overflow: hidden; margin-top: 4px; }
+    .vbar > div { height: 100%; background: var(--accent); }
+    .vrow .cnt { font-weight: 700; min-width: 64px; text-align: right; }
+    .vrow .x { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 18px; }
+    .vadd { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 8px; margin-top: 10px; }
+    @media (max-width: 700px) { .vadd { grid-template-columns: 1fr 1fr; } }
+    .chip.st-open.active { background: var(--ok); border-color: var(--ok); color: #fff; }
+    .chip.st-closed.active { background: var(--danger); border-color: var(--danger); color: #fff; }
+    .live { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); margin-right: 6px; animation: blink 1.4s infinite; }
+    @keyframes blink { 50% { opacity: .2; } }
   </style>
 </head>
 <body>
+  <div class="brandbar" data-brand-bar hidden></div>
   <header class="hero wrap" style="padding-bottom:6px">
     <img class="logo" data-logo alt="" hidden style="width:56px;height:56px">
     <span class="kicker">Administration</span>
@@ -52,6 +69,18 @@
         <button class="btn btn-danger" id="bDelete" disabled>✕ Supprimer la sélection</button>
       </div>
     </div>
+
+    <details class="card mt" id="votesBox" open hidden>
+      <summary style="cursor:pointer;font-weight:700">🏆 Votes des nominations <span class="muted small" id="vSummary"></span></summary>
+      <p class="small muted mt">1. Ajoutez au moins 2 nominés · 2. Passez la catégorie en <strong>Ouvert</strong> : les invités votent juste après leur selfie ·
+        3. Passez en <strong>Fermé</strong> avant la proclamation · 4. <strong>Révéler sur l’écran</strong> lance l’animation sur /ecran. Les résultats restent secrets jusque-là.</p>
+      <div id="vReveal"></div>
+      <div id="vCats"></div>
+      <form id="vNewCat" class="row mt">
+        <input class="grow" id="vNewTitle" type="text" maxlength="80" placeholder="Nouvelle catégorie (ex. : Meilleure tenue)">
+        <button class="btn btn-ghost">+ Ajouter la catégorie</button>
+      </form>
+    </details>
 
     <details class="card mt" id="partnersBox">
       <summary style="cursor:pointer;font-weight:700">🤝 Partenaires de l’activité <span class="muted small" id="pCount"></span></summary>
@@ -166,6 +195,117 @@
       render();
     });
 
+    /* ---- Votes ---- */
+    let vData = null;
+    const STATUS = { draft: 'Brouillon', open: 'Ouvert', closed: 'Fermé' };
+    async function loadVotes(force) {
+      const typing = document.activeElement && document.activeElement.closest && document.activeElement.closest('#votesBox') && /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+      try { vData = await Gala.api('/api/admin/votes', { role: ROLE }); } catch { return; }
+      const open = vData.categories.filter(c => c.status === 'open').length;
+      $('#vSummary').innerHTML = `· ${vData.voters} votant${vData.voters > 1 ? 's' : ''}${open ? ` · <span class="live"></span>${open} vote${open > 1 ? 's' : ''} ouvert${open > 1 ? 's' : ''}` : ''}`;
+      const pending = [...document.querySelectorAll('[data-add]')].some(f => f.name.value || f.detail.value || f.photo.files.length);
+      if ((typing || pending) && !force) { updateCounts(); return; }
+      renderVotes();
+    }
+    function updateCounts() {
+      for (const c of vData.categories) for (const n of c.items) {
+        const el = document.querySelector(`[data-cnt="${CSS.escape(n.id)}"]`);
+        if (el) el.textContent = `${n.votes} vote${n.votes > 1 ? 's' : ''}`;
+      }
+    }
+    function renderVotes() {
+      const r = vData.reveal;
+      const rc = r && vData.categories.find(c => c.id === r.catId);
+      $('#vReveal').innerHTML = rc ? `<div class="notice warn row"><span class="grow">📣 À l’écran en ce moment : <strong>${esc(rc.title)}</strong></span>
+        <button class="btn btn-ghost" data-unreveal>Retirer de l’écran</button></div>` : '';
+      $('#vCats').innerHTML = vData.categories.map((c, ci) => {
+        const max = Math.max(1, ...c.items.map(n => n.votes));
+        return `<div class="vcat" data-cat="${esc(c.id)}">
+          <div class="row">
+            <div class="grow"><h3>${esc(c.title)}</h3><div class="sub">${esc(c.subtitle || '')} · ${c.total} vote${c.total > 1 ? 's' : ''} · ${c.items.length} nominé${c.items.length > 1 ? 's' : ''}</div></div>
+            <button class="btn btn-ghost" data-a="up" ${ci ? '' : 'disabled'} title="Monter">↑</button>
+            <button class="btn btn-ghost" data-a="down" ${ci < vData.categories.length - 1 ? '' : 'disabled'} title="Descendre">↓</button>
+            <button class="btn btn-ghost" data-a="edit" title="Renommer">✏️</button>
+            <button class="btn btn-ghost" data-a="del" title="Supprimer">🗑</button>
+          </div>
+          <div class="row mt">
+            <div class="chips grow">${Object.entries(STATUS).map(([k, l]) => `<button class="chip st-${k}${c.status === k ? ' active' : ''}" data-st="${k}">${l}</button>`).join('')}</div>
+            <button class="btn btn-primary" data-a="reveal" ${c.items.length ? '' : 'disabled'}>📣 Révéler sur l’écran</button>
+          </div>
+          ${c.status === 'open' && c.items.length < 2 ? '<p class="small" style="color:var(--accent)">⚠ Ajoutez au moins 2 nominés pour que les invités voient ce vote.</p>' : ''}
+          <div class="mt">${c.items.map(n => `<div class="vrow">
+              ${n.photo ? `<img src="${esc(n.photo)}" alt="">` : `<span class="ini">${esc(n.name.charAt(0).toUpperCase())}</span>`}
+              <div class="grow"><strong>${esc(n.name)}</strong> <span class="muted small">${esc(n.detail || '')}</span>
+                <div class="vbar"><div style="width:${Math.round((n.votes / max) * 100)}%"></div></div></div>
+              <span class="cnt" data-cnt="${esc(n.id)}">${n.votes} vote${n.votes > 1 ? 's' : ''}</span>
+              <button class="x" data-del-nom="${esc(n.id)}" title="Retirer ce nominé">✕</button>
+            </div>`).join('') || '<p class="small muted">Aucun nominé pour l’instant.</p>'}</div>
+          <form class="vadd" data-add>
+            <input name="name" type="text" maxlength="60" placeholder="Nom du nominé *" required>
+            <input name="detail" type="text" maxlength="60" placeholder="Détail (ex. : Tribu de Juda)">
+            <label class="btn btn-ghost" style="padding:10px 12px">📷 <span data-fname>Photo</span><input name="photo" type="file" accept="image/*" hidden></label>
+            <button class="btn btn-ok">+ Ajouter</button>
+          </form>
+        </div>`;
+      }).join('');
+    }
+    const vPost = (path, body) => Gala.api('/api/admin/votes/' + path, { method: 'POST', body, role: ROLE });
+    $('#votesBox').addEventListener('click', async e => {
+      if (e.target.closest('[data-unreveal]')) { await vPost('reveal', { id: null }); return loadVotes(true); }
+      const box = e.target.closest('[data-cat]'); if (!box) return;
+      const id = box.dataset.cat;
+      const c = vData.categories.find(x => x.id === id);
+      try {
+        const st = e.target.closest('[data-st]');
+        if (st) { await vPost('category/status', { id, status: st.dataset.st }); return loadVotes(true); }
+        const dn = e.target.closest('[data-del-nom]');
+        if (dn) { if (confirm('Retirer ce nominé ? Ses votes seront perdus.')) { await vPost('nominee/delete', { id: dn.dataset.delNom }); loadVotes(true); } return; }
+        const a = e.target.closest('[data-a]'); if (!a) return;
+        if (a.dataset.a === 'up' || a.dataset.a === 'down') { await vPost('category/move', { id, dir: a.dataset.a === 'up' ? -1 : 1 }); }
+        if (a.dataset.a === 'edit') {
+          const title = prompt('Titre de la catégorie', c.title); if (title === null) return;
+          const subtitle = prompt('Sous-titre (facultatif)', c.subtitle || ''); if (subtitle === null) return;
+          await vPost('category', { id, title, subtitle });
+        }
+        if (a.dataset.a === 'del') { if (!confirm(`Supprimer « ${c.title} » et tous ses votes ?`)) return; await vPost('category/delete', { id }); }
+        if (a.dataset.a === 'reveal') {
+          if (c.status === 'open' && !confirm('Le vote est encore ouvert. Révéler quand même ? (pensez à le fermer)')) return;
+          await vPost('reveal', { id }); Gala.toast('Animation lancée sur l’écran /ecran');
+        }
+        loadVotes(true);
+      } catch (err) { Gala.toast(err.message, 5000); }
+    });
+    $('#votesBox').addEventListener('change', e => {
+      if (e.target.name === 'photo') { const f = e.target.files[0]; e.target.closest('label').querySelector('[data-fname]').textContent = f ? f.name.slice(0, 14) : 'Photo'; }
+    });
+    $('#votesBox').addEventListener('submit', async e => {
+      const f = e.target.closest('[data-add]');
+      if (f) {
+        e.preventDefault();
+        const id = f.closest('[data-cat]').dataset.cat;
+        const btn = f.querySelector('button'); btn.disabled = true;
+        try {
+          const file = f.photo.files[0];
+          const fields = { categoryId: id, name: f.name.value, detail: f.detail.value };
+          if (file) {
+            const { blob } = await Gala.compressImage(file, 800, 0.85);
+            await Gala.uploadFile('/api/admin/votes/nominee', fields, blob, { role: ROLE });
+          } else {
+            const fd = new FormData(); Object.entries(fields).forEach(([k, v]) => fd.append(k, v));
+            const r = await fetch('/api/admin/votes/nominee', { method: 'POST', body: fd, headers: { 'x-auth-token': Gala.token(ROLE) } });
+            if (!r.ok) throw new Error((await r.json()).error || 'Échec');
+          }
+          loadVotes(true);
+        } catch (err) { Gala.toast(err.message, 5000); btn.disabled = false; }
+        return;
+      }
+      if (e.target.id === 'vNewCat') {
+        e.preventDefault();
+        const title = $('#vNewTitle').value.trim(); if (!title) return;
+        try { await vPost('category', { title, subtitle: '' }); $('#vNewTitle').value = ''; loadVotes(true); } catch (err) { Gala.toast(err.message); }
+      }
+    });
+
     /* ---- Partenaires ---- */
     async function loadPartners() {
       const { items } = await Gala.api('/api/partners');
@@ -176,7 +316,7 @@
           <div class="meta"><strong style="color:var(--text)">${esc(p.name)}</strong></div>
           <div class="meta">${p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.url.replace(/^https?:\/\//, ''))}</a>` : 'Sans lien'}</div>
           ${p.message ? `<div class="meta" style="white-space:normal">« ${esc(p.message)} »</div>` : ''}
-          <div class="acts" style="grid-template-columns:1fr"><button class="btn btn-danger" data-pdel>✕ Retirer</button></div>
+          <div class="acts" style="grid-template-columns:1fr">${p.builtin ? '<span class="small muted center">Partenaire permanent</span>' : '<button class="btn btn-danger" data-pdel>✕ Retirer</button>'}</div>
         </div>`).join('');
     }
     $('#pLogo').addEventListener('change', e => {
@@ -205,6 +345,9 @@
     });
 
     Gala.setupLogin(ROLE, () => {
+      $('#votesBox').hidden = !Gala.config.votesEnabled;
+      if (Gala.config.votesEnabled) loadVotes(true);
+      setInterval(() => { if (Gala.config.votesEnabled && !document.hidden && $('#votesBox').open) loadVotes(false); }, 5000);
       loadPartners();
       load(true);
       setInterval(() => { if (!document.hidden) load(false); }, 8000);

@@ -33,6 +33,7 @@ const multer = require('multer');
 const QRCode = require('qrcode');
 const { ZipArchive } = require('archiver');
 const { createStorage } = require('./lib/storage');
+const { createVotes } = require('./lib/votes');
 
 /* ------------------------------------------------------------------ */
 /* Configuration (variables d'environnement)                           */
@@ -51,11 +52,24 @@ const CONFIG = {
   photographerPassword: env('PHOTOGRAPHER_PASSWORD', 'photographe'),
   secret: env('APP_SECRET', 'change-moi-' + env('ADMIN_PASSWORD', env('MODERATOR_PASSWORD', ''))),
   publicGallery: env('PUBLIC_GALLERY', 'true') !== 'false',
+  // Votes des nominations : désactivés par défaut (VOTES_ENABLED=true pour les réactiver)
+  votesEnabled: env('VOTES_ENABLED', 'false') === 'true',
   // Distance maximale entre deux empreintes pour considérer que c'est la même personne.
   // Plus petit = plus strict (moins de fausses photos, mais risque d'en manquer).
   matchThreshold: Number(env('FACE_MATCH_THRESHOLD', 0.5)),
   // Visages un peu au-delà du seuil : proposés à l'invité (« Est-ce vous ? »).
   candidateMargin: Number(env('FACE_CANDIDATE_MARGIN', 0.1)),
+  // Marque de la plateforme (MEDIART) et contacts commerciaux
+  brand: {
+    name: env('BRAND_NAME', 'MEDIART Live'),
+    company: env('BRAND_COMPANY', 'MEDIART'),
+    slogan: env('BRAND_SLOGAN', 'Une vision inspirée'),
+    whatsapp: env('BRAND_WHATSAPP', '+2250747682027'),
+    phone: env('BRAND_PHONE', '0566750669'),
+    email: env('BRAND_EMAIL', 'mediart94@gmail.com'),
+    facebook: env('BRAND_FACEBOOK', 'https://www.facebook.com/search/top?q=mediart'),
+    logo: env('BRAND_LOGO_URL', ''),
+  },
   primaryColor: env('PRIMARY_COLOR', '#0d5c46'),
   accentColor: env('ACCENT_COLOR', '#D4AF37'),
   maxUploadMb: Number(env('MAX_UPLOAD_MB', 12)),
@@ -64,6 +78,15 @@ const CONFIG = {
 };
 
 const storage = createStorage({ slug: CONFIG.eventSlug, dataDir: CONFIG.dataDir });
+const votes = createVotes({ storage });
+
+// Partenaire permanent : l'église organisatrice (toujours affiché en premier, non supprimable)
+const BUILTIN_PARTNERS = [{
+  id: 'builtin-eglise', builtin: true,
+  name: 'Église Baptiste Philadelphie d’Angré', url: '',
+  message: 'Organisatrice de la Fête de la Jeunesse 2026',
+  logo: '/img/logo.png',
+}];
 
 /* ------------------------------------------------------------------ */
 /* Index en mémoire                                                    */
@@ -167,6 +190,7 @@ function limiter(max, windowMs) {
 }
 const searchLimit = limiter(CONFIG.searchesPer15Min, 15 * 60 * 1000);
 const zipLimit = limiter(20, 15 * 60 * 1000);
+const voteLimit = limiter(60, 15 * 60 * 1000);
 
 /* ------------------------------------------------------------------ */
 /* Réception des fichiers                                              */
@@ -206,9 +230,11 @@ app.get('/api/config', (req, res) => {
     backgrounds: BACKGROUNDS,
     albums: CONFIG.albums,
     publicGallery: CONFIG.publicGallery,
+    votesEnabled: CONFIG.votesEnabled,
     primaryColor: CONFIG.primaryColor,
     accentColor: CONFIG.accentColor,
     publicUrl: CONFIG.publicUrl || `${req.protocol}://${req.get('host')}`,
+    brand: CONFIG.brand,
     photoCount: photos.size,
     storage: storage.kind,
   });
@@ -394,7 +420,7 @@ app.post('/api/admin/delete', requireRole('admin'), async (req, res) => {
 /* ------------------------------------------------------------------ */
 app.get('/api/partners', (req, res) => {
   res.set('Cache-Control', 'no-store');
-  res.json({ items: partners.map(({ id, name, url, message, logo }) => ({ id, name, url, message, logo })) });
+  res.json({ items: [...BUILTIN_PARTNERS, ...partners].map(({ id, name, url, message, logo, builtin }) => ({ id, name, url, message, logo, builtin: !!builtin })) });
 });
 
 app.post('/api/admin/partners', requireRole('admin'), (req, res) => {
@@ -432,6 +458,84 @@ app.post('/api/admin/partners/delete', requireRole('admin'), async (req, res) =>
   }
 });
 
+/* ------------------------------------------------------------------ */
+/* Votes des nominations                                               */
+/* ------------------------------------------------------------------ */
+const validDevice = d => typeof d === 'string' && /^[a-z0-9-]{10,64}$/i.test(d);
+function voterFrom(body) {
+  const who = {};
+  if (validDevice(body && body.device)) who.device = body.device;
+  if (body && validDescriptor(body.descriptor)) who.descriptor = body.descriptor;
+  return who;
+}
+
+// Votes désactivés : les routes publiques répondent « rien d'ouvert »
+app.use('/api/vote', (req, res, next) => {
+  if (CONFIG.votesEnabled) return next();
+  res.set('Cache-Control', 'no-store');
+  if (req.path === '/live') return res.json({ voters: 0, reveal: null });
+  return res.json({ categories: [], votes: {}, ok: true, counted: 0 });
+});
+
+app.get('/api/vote/open', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ categories: votes.openCategories() });
+});
+
+app.post('/api/vote/me', voteLimit, (req, res) => {
+  const who = voterFrom(req.body);
+  res.set('Cache-Control', 'no-store');
+  res.json({ categories: votes.openCategories(), votes: (who.device || who.descriptor) ? votes.myVotes(who) : {} });
+});
+
+app.post('/api/vote', voteLimit, (req, res) => {
+  const who = voterFrom(req.body);
+  if (!who.device && !who.descriptor) return res.status(400).json({ error: 'Faites d’abord votre selfie.' });
+  const choices = req.body && typeof req.body.choices === 'object' ? req.body.choices : {};
+  res.json(votes.vote(who, choices));
+});
+
+app.get('/api/vote/live', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(votes.live());
+});
+
+const adminJson = fn => [requireRole('admin'), async (req, res) => {
+  try { const out = await fn(req.body || {}); res.json(out || { ok: true }); }
+  catch (e) { res.status(400).json({ error: e.message || 'Erreur.' }); }
+}];
+app.get('/api/admin/votes', requireRole('admin'), (req, res) => { res.set('Cache-Control', 'no-store'); res.json(votes.adminView()); });
+app.post('/api/admin/votes/category', ...adminJson(b => {
+  const title = cleanText(b.title, 80); if (!title) throw new Error('Titre obligatoire.');
+  votes.saveCategory({ id: b.id ? String(b.id) : null, title, subtitle: cleanText(b.subtitle, 80) });
+}));
+app.post('/api/admin/votes/category/delete', ...adminJson(b => votes.deleteCategory(String(b.id))));
+app.post('/api/admin/votes/category/status', ...adminJson(b => votes.setStatus(String(b.id), String(b.status))));
+app.post('/api/admin/votes/category/move', ...adminJson(b => votes.moveCategory(String(b.id), Number(b.dir))));
+app.post('/api/admin/votes/nominee/delete', ...adminJson(b => votes.deleteNominee(String(b.id))));
+app.post('/api/admin/votes/reveal', ...adminJson(b => votes.reveal(b.id ? String(b.id) : null)));
+app.post('/api/admin/votes/reset', ...adminJson(b => votes.resetVotes(b.id ? String(b.id) : null)));
+app.post('/api/admin/votes/nominee', requireRole('admin'), (req, res) => {
+  upload.single('photo')(req, res, async err => {
+    if (err) return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'Photo trop lourde.' : 'Envoi invalide.' });
+    const name = cleanText(req.body.name, 60);
+    if (!name) return res.status(400).json({ error: 'Nom du nominé obligatoire.' });
+    let image = null;
+    if (req.file) {
+      const mimetype = detectImage(req.file.buffer);
+      if (!mimetype) return res.status(415).json({ error: 'Photo : JPEG, PNG ou WebP.' });
+      image = { buffer: req.file.buffer, mimetype };
+    }
+    try {
+      const n = await votes.addNominee({ categoryId: String(req.body.categoryId || ''), name, detail: cleanText(req.body.detail, 60), image });
+      res.json({ ok: true, id: n.id });
+    } catch (e) {
+      console.error('Nominé :', e.message || e);
+      res.status(400).json({ error: e.message || 'Échec.' });
+    }
+  });
+});
+
 // QR code (SVG) pointant vers une page de l'application
 app.get('/api/qr.svg', async (req, res) => {
   const base = CONFIG.publicUrl || `${req.protocol}://${req.get('host')}`;
@@ -464,6 +568,7 @@ const pub = path.join(__dirname, 'public');
 const pages = {
   '/': 'index.html', '/galerie': 'galerie.html', '/admin': 'admin.html',
   '/photographe': 'photographe.html', '/ecran': 'ecran.html', '/qr': 'qr.html',
+  '/mediart': 'mediart.html',
 };
 for (const [route, file] of Object.entries(pages)) {
   app.get(route, (req, res) => res.sendFile(path.join(pub, file)));
@@ -477,6 +582,13 @@ app.use((req, res) => res.status(404).sendFile(path.join(pub, 'index.html')));
 /* Démarrage                                                           */
 /* ------------------------------------------------------------------ */
 process.on('unhandledRejection', e => console.error('Erreur non gérée :', e && e.message));
+// Render arrête le serveur à chaque redéploiement : on enregistre les votes avant de quitter
+for (const sig of ['SIGTERM', 'SIGINT']) {
+  process.on(sig, async () => {
+    try { await Promise.race([votes.flush(), new Promise(r => setTimeout(r, 8000))]); } catch {}
+    process.exit(0);
+  });
+}
 
 (async () => {
   for (let attempt = 1; ; attempt++) {
@@ -484,6 +596,7 @@ process.on('unhandledRejection', e => console.error('Erreur non gérée :', e &&
       const items = await storage.init();
       items.forEach(addToIndex);
       partners = (await storage.listPartners()).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+      await votes.load();
       break;
     } catch (e) {
       console.error(`Chargement de l’index impossible (tentative ${attempt}) :`, e.message || e);

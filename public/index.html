@@ -26,6 +26,7 @@
   </style>
 </head>
 <body>
+  <div class="brandbar" data-brand-bar hidden></div>
   <header class="hero narrow">
     <img class="logo" data-logo alt="" hidden>
     <span class="kicker" data-organizer></span>
@@ -46,7 +47,8 @@
       <label class="consent mt-l">
         <input type="checkbox" id="consent">
         <span>J’accepte que mon selfie soit analysé <strong>sur mon téléphone</strong> pour retrouver mes photos.
-          Le selfie n’est ni envoyé ni conservé : seule une empreinte numérique de mon visage sert à la recherche.</span>
+          Le selfie n’est ni envoyé ni conservé : seule une empreinte numérique de mon visage sert à la recherche<span data-vote-note hidden>
+          et à garantir un seul vote par personne pour les nominations</span>.</span>
       </label>
 
       <div class="mt-l">
@@ -70,6 +72,8 @@
       </div>
     </section>
 
+    <section id="vote" class="card vote-card mt" hidden></section>
+
     <section id="ask" class="card center mt" hidden>
       <p class="found" style="font-size:22px">Est-ce vous ?</p>
       <p class="small muted">Vos réponses nous aident à retrouver encore plus de photos de vous.</p>
@@ -84,9 +88,11 @@
         <button class="btn btn-ghost" id="again">🔄 Rechercher à nouveau</button>
         <button class="btn btn-ghost" id="redo">🤳 Refaire mon selfie</button>
       </div>
+      <button class="btn btn-primary mt" id="myVotes" hidden>🏆 Voter / modifier mes votes</button>
       <button class="btn btn-ghost small mt" id="forget" style="font-size:13px">Effacer mon empreinte de ce téléphone</button>
     </section>
 
+    <section class="mediart-promo" data-mediart-promo hidden></section>
     <section id="programme" class="programme" hidden></section>
     <section id="partners" class="partners" hidden></section>
 
@@ -95,7 +101,7 @@
     </div>
   </main>
 
-  <footer class="footer">Photos officielles du photographe de l’événement.</footer>
+  <footer class="footer">Photos officielles de l’événement · Service <a href="/mediart">MEDIART Live</a> — Une vision inspirée</footer>
 
   <script src="/js/common.js"></script>
   <script src="/js/faces.js"></script>
@@ -169,6 +175,7 @@
         $('#selfieImg').src = c.toDataURL('image/jpeg', 0.8);
         descriptor = r.descriptor; confirmed = []; rejected = [];
         try { localStorage.setItem(KEY, JSON.stringify({ d: descriptor, img: $('#selfieImg').src, confirmed, rejected, at: Date.now() })); } catch {}
+        await runVotes(false);
         await search();
       } catch (e) {
         busy('');
@@ -204,6 +211,77 @@
         Gala.toast(e.message, 5000);
         $('#after').hidden = false;
       }
+    }
+
+    /* ---------- Votes des nominations ---------- */
+    const DEVICE_KEY = 'gala_device';
+    let device = '';
+    try { device = localStorage.getItem(DEVICE_KEY) || ''; } catch {}
+    if (!/^[a-z0-9-]{10,64}$/i.test(device)) {
+      device = 'd-' + Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join('');
+      try { localStorage.setItem(DEVICE_KEY, device); } catch {}
+    }
+    const SKIP_KEY = 'gala_vote_skip';
+    const getSkips = () => { try { return JSON.parse(localStorage.getItem(SKIP_KEY) || '[]'); } catch { return []; } };
+    const addSkip = id => { try { localStorage.setItem(SKIP_KEY, JSON.stringify([...new Set([...getSkips(), id])])); } catch {} };
+    let openCats = [];
+
+    async function voteState() {
+      try {
+        return await Gala.api('/api/vote/me', { method: 'POST', body: { device, descriptor } });
+      } catch { return { categories: [], votes: {} }; }
+    }
+
+    // Affiche les catégories une par une. "all" : toutes (pour modifier), sinon seulement celles non votées.
+    if (cfg.votesEnabled) Gala.$$('[data-vote-note]').forEach(el => { el.hidden = false; });
+    async function runVotes(all) {
+      if (!cfg.votesEnabled) return;
+      const st = await voteState();
+      openCats = st.categories;
+      $('#myVotes').hidden = !openCats.length;
+      const skips = getSkips();
+      const todo = all ? openCats : openCats.filter(c => !st.votes[c.id] && !skips.includes(c.id));
+      if (!todo.length) return;
+      busy(''); message('');
+      $('#ask').hidden = true; $('#actions').hidden = true; $('#after').hidden = true;
+      const box = $('#vote');
+      box.hidden = false;
+      box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      for (let i = 0; i < todo.length; i++) {
+        const c = todo[i];
+        const chosen = await new Promise(resolve => {
+          let sel = st.votes[c.id] || null;
+          box.innerHTML = `
+            <div class="vprog">🏆 Nominations · ${i + 1} / ${todo.length}</div>
+            <h2>${esc(c.title)}</h2>${c.subtitle ? `<div class="vsub">${esc(c.subtitle)}</div>` : ''}
+            <p class="small muted">Touchez votre favori, puis validez.</p>
+            <div class="vgrid">${c.nominees.map(n => `
+              <button type="button" class="nominee${sel === n.id ? ' sel' : ''}" data-n="${esc(n.id)}">
+                ${n.photo ? `<img class="ph" src="${esc(n.photo)}" alt="">` : `<span class="ph">${esc((n.name || '?').trim().charAt(0).toUpperCase())}</span>`}
+                <span class="nm">${esc(n.name)}</span>${n.detail ? `<span class="dt">${esc(n.detail)}</span>` : ''}
+              </button>`).join('')}</div>
+            <div class="row mt-l">
+              <button type="button" class="btn btn-ghost" data-skip>Passer</button>
+              <button type="button" class="btn btn-primary grow" data-ok ${sel ? '' : 'disabled'}>Valider mon vote</button>
+            </div>`;
+          box.querySelectorAll('.nominee').forEach(b => b.onclick = () => {
+            sel = b.dataset.n;
+            box.querySelectorAll('.nominee').forEach(x => x.classList.toggle('sel', x === b));
+            box.querySelector('[data-ok]').disabled = false;
+          });
+          box.querySelector('[data-skip]').onclick = () => resolve(null);
+          box.querySelector('[data-ok]').onclick = () => resolve(sel);
+        });
+        if (!chosen) { addSkip(c.id); continue; }
+        try {
+          const r = await Gala.api('/api/vote', { method: 'POST', body: { device, descriptor, choices: { [c.id]: chosen } } });
+          st.votes = r.votes || st.votes;
+        } catch (e) { Gala.toast(e.message, 5000); }
+      }
+      box.innerHTML = `<div class="vote-done">Merci pour vos votes !</div>
+        <p class="small muted">Résultats proclamés pendant la soirée. Voici maintenant vos photos…</p>`;
+      await Gala.sleep(1600);
+      box.hidden = true;
     }
 
     // Vignette ronde centrée sur un visage (cadre en proportions de la photo)
@@ -270,6 +348,7 @@
       Gala.lightbox(items, Number(t.dataset.i));
     });
     $('#again').onclick = () => search();
+    $('#myVotes').onclick = async () => { $('#grid').hidden = true; await runVotes(true); $('#grid').hidden = false; search(); };
     $('#redo').onclick = () => {
       clearTimeout(timer);
       $('#result').hidden = true; $('#after').hidden = true; $('#ask').hidden = true; $('#grid').innerHTML = '';
@@ -297,7 +376,7 @@
         rejected = Array.isArray(saved.rejected) ? saved.rejected : [];
         $('#start').hidden = true; $('#result').hidden = false;
         $('#selfieImg').src = saved.img || '';
-        search();
+        runVotes(false).then(() => search());
       }
     } catch {}
   })();

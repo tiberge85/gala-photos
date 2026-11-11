@@ -1,4 +1,8 @@
-# Gala Photos — retrouvez vos photos avec un selfie
+# MEDIART Live — retrouvez vos photos avec un selfie
+
+Plateforme de partage de photos d'événement en temps réel, par **MEDIART** (« Une vision inspirée »).
+Contact : WhatsApp +225 07 47 68 20 27 · 05 66 75 06 69 · mediart94@gmail.com
+
 
 Application web pour le Gala de la Jeunesse (EBPA), sur le principe de Memento :
 
@@ -17,6 +21,17 @@ Aucune application à installer, aucun service de reconnaissance payant.
 | `/galerie` | Tous ou admin seulement (`PUBLIC_GALLERY`) | Toutes les photos de la soirée |
 | `/ecran` | Vidéoprojecteur | Diaporama en direct, avec le QR code affiché |
 | `/qr` | Organisateur | Affiche A4 et cartes de table à imprimer |
+| `/mediart` | Prospects | Page de présentation commerciale de MEDIART Live |
+
+## Votes des nominations
+
+Dans `/admin` → « 🏆 Votes des nominations » :
+1. Ajoutez au moins 2 nominés par catégorie (nom, détail comme la tribu, photo facultative).
+2. Passez la catégorie en **Ouvert** : juste après leur selfie, les invités votent (une catégorie par écran, bouton « Passer » possible). Ils retrouvent ensuite leurs photos.
+3. Un vote par personne : l'invité est reconnu par son téléphone ou par son visage. S'il revote, son choix remplace l'ancien.
+4. Les résultats sont visibles en direct dans l'admin uniquement. Passez en **Fermé**, puis **📣 Révéler sur l'écran** : `/ecran` joue l'animation « Et le gagnant est… ».
+
+Les votes sont sauvegardés dans Cloudinary (`gala/<slug>/state/votes.json`) et survivent aux redéploiements.
 
 ## Comment marche la reconnaissance
 
@@ -60,3 +75,8 @@ Prends l'offre **Starter** de Render : l'offre gratuite se met en veille et le p
 - Si `PUBLIC_GALLERY=true`, n'importe qui peut voir toutes les photos sur `/galerie`. Mets `false` pour que chacun ne voie que les siennes.
 - Comme pour Memento, quelqu'un pourrait utiliser la photo d'une autre personne au lieu de son propre selfie. Les photos d'un gala restant peu sensibles, c'est un risque acceptable.
 - Pas de vidéos, photos uniquement.
+
+## Marque MEDIART
+
+Réglages (variables Render) : `BRAND_NAME` (MEDIART Live), `BRAND_SLOGAN`, `BRAND_WHATSAPP`, `BRAND_PHONE`, `BRAND_EMAIL`,
+`BRAND_FACEBOOK` (lien de la page Facebook), `BRAND_LOGO_URL` (logo officiel en image, sinon logo texte « MEDI**A**RT » avec le A rouge).

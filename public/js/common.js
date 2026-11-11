@@ -20,8 +20,68 @@
     G.$$('[data-organizer]').forEach(el => { el.textContent = c.organizer; el.hidden = !c.organizer; });
     G.$$('[data-logo]').forEach(el => { if (c.logo) { el.src = c.logo; el.hidden = false; } });
     const base = document.title;
-    document.title = base ? `${base} · ${c.eventName}` : c.eventName;
+    const brandName = (c.brand && c.brand.name) || '';
+    if (!document.body.hasAttribute('data-keep-title')) {
+      document.title = [base, c.eventName, brandName].filter(Boolean).join(' · ');
+    }
+    // Icône MEDIART dans l'onglet
+    if (!document.querySelector('link[rel=icon]')) {
+      const l = document.createElement('link'); l.rel = 'icon'; l.type = 'image/svg+xml'; l.href = '/img/mediart-icon.svg';
+      document.head.appendChild(l);
+    }
+    G.$$('[data-brand-bar]').forEach(el => G.renderBrandBar(el));
+    G.$$('[data-mediart-promo]').forEach(el => G.renderMediartPromo(el));
     return c;
+  };
+
+  /* ---------- Marque MEDIART ---------- */
+  const fmtPhone = n => {
+    const d = String(n || '').replace(/[^\d]/g, '');
+    const local = d.startsWith('225') && d.length === 13 ? d.slice(3) : d;
+    return (d.startsWith('225') ? '+225 ' : '') + local.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
+  };
+  const intl = n => {
+    const d = String(n || '').replace(/[^\d]/g, '');
+    return d.length === 10 ? '225' + d : d;
+  };
+  G.brand = () => (G.config && G.config.brand) || {};
+  G.brandLinks = () => {
+    const b = G.brand();
+    const msg = encodeURIComponent(`Bonjour ${b.company || 'MEDIART'}, j’ai découvert ${b.name || 'MEDIART Live'} et je souhaite l’avoir pour mon événement.`);
+    return {
+      whatsapp: b.whatsapp ? `https://wa.me/${intl(b.whatsapp)}?text=${msg}` : '',
+      whatsappLabel: fmtPhone(b.whatsapp),
+      tel: b.phone ? `tel:+${intl(b.phone)}` : '',
+      telLabel: fmtPhone(b.phone),
+      mail: b.email ? `mailto:${b.email}?subject=${encodeURIComponent((b.name || 'MEDIART Live') + ' pour mon événement')}` : '',
+      facebook: b.facebook || '',
+    };
+  };
+  // Logo texte : MEDI A(rouge) RT + pastille LIVE
+  G.brandLogo = (cls = '') => {
+    const b = G.brand();
+    if (b.logo) return `<img class="ml-img ${cls}" src="${G.esc(b.logo)}" alt="${G.esc(b.name || 'MEDIART')}">`;
+    const suffix = (b.name || 'MEDIART Live').replace(/^\s*mediart\s*/i, '');
+    return `<span class="ml-logo ${cls}" aria-label="${G.esc(b.name || 'MEDIART Live')}">MEDI<span class="a">A</span>RT${suffix ? `<span class="live">${G.esc(suffix)}</span>` : ''}</span>`;
+  };
+  G.renderBrandBar = el => {
+    el.innerHTML = `<a href="/mediart" class="brandbar-in">
+      <img src="/img/mediart-icon.svg" alt="" class="ml-icon"><span class="pp">Propulsé par</span>${G.brandLogo('sm')}</a>`;
+    el.hidden = false;
+  };
+  G.renderMediartPromo = el => {
+    const b = G.brand(), L = G.brandLinks();
+    el.innerHTML = `
+      <div class="mp-head"><img src="/img/mediart-icon.svg" alt="" class="ml-icon lg">${G.brandLogo('md')}</div>
+      <p class="mp-title">Vous organisez un événement ?</p>
+      <p class="mp-text">Mariage, anniversaire, baptême, gala, conférence, séminaire… <strong>${G.esc(b.company || 'MEDIART')}</strong> installe ce même service pour vous :
+        vos invités retrouvent <strong>leurs photos en temps réel</strong> avec un simple selfie, sans application.</p>
+      <div class="mp-actions">
+        ${L.whatsapp ? `<a class="btn btn-wa" href="${L.whatsapp}" target="_blank" rel="noopener">💬 WhatsApp ${G.esc(L.whatsappLabel)}</a>` : ''}
+        ${L.tel ? `<a class="btn btn-ghost" href="${L.tel}">📞 ${G.esc(L.telLabel)}</a>` : ''}
+      </div>
+      <a class="mp-more" href="/mediart">Découvrir ${G.esc(b.name || 'MEDIART Live')} →</a>`;
+    el.hidden = false;
   };
 
   /* ---------- Visuels du week-end qui défilent en fond ---------- */
