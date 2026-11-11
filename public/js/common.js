@@ -333,6 +333,24 @@
   };
 
   /* ---------- Visionneuse plein écran ---------- */
+  /* ---------- Mesure d'audience (visites, téléchargements) ---------- */
+  G.deviceId = function () {
+    try {
+      let id = localStorage.getItem('gala_device');
+      if (!id) { id = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join(''); localStorage.setItem('gala_device', id); }
+      return id;
+    } catch { return ''; }
+  };
+  G.track = function (t, extra = {}) {
+    try {
+      const body = JSON.stringify({ t, ...extra });
+      const blob = new Blob([body], { type: 'application/json' });
+      if (!(navigator.sendBeacon && navigator.sendBeacon('/api/track', blob))) {
+        fetch('/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {});
+      }
+    } catch {}
+  };
+
   G.lightbox = function (items, index, { extraButtons } = {}) {
     let i = index;
     const el = document.createElement('div');
@@ -374,6 +392,7 @@
     el.querySelector('.lb-prev').onclick = () => go(-1);
     el.querySelector('.lb-next').onclick = () => go(1);
     el.querySelector('.lb-close').onclick = close;
+    el.querySelector('.lb-dl').addEventListener('click', () => { if (items[i].id) G.track('download', { id: items[i].id }); });
     shareBtn.onclick = async () => {
       try { await navigator.share({ title: G.config?.eventName, url: items[i].url }); } catch {}
     };

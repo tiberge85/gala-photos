@@ -47,6 +47,9 @@
     <div class="toolbar">
       <div class="row">
         <div class="stats grow">
+          <div class="stat"><b id="sVisits">0</b><span class="small muted">visites</span></div>
+          <div class="stat"><b id="sVisitors">0</b><span class="small muted">visiteurs uniques</span></div>
+          <div class="stat"><b id="sDl">0</b><span class="small muted">photos téléchargées</span></div>
           <div class="stat"><b id="sPhotos">0</b><span class="small muted">photos</span></div>
           <div class="stat"><b id="sFaces">0</b><span class="small muted">visages repérés</span></div>
           <div class="stat"><b id="sNoFace">0</b><span class="small muted">sans visage</span></div>
@@ -133,7 +136,7 @@
           <div class="thumb"><img loading="lazy" src="${esc(p.thumb)}" alt="">
             <span class="sel">${selected.has(p.id) ? '✓' : ''}</span>
             <span class="fc${p.faceCount ? '' : ' zero'}">${p.faceCount} visage${p.faceCount > 1 ? 's' : ''}</span></div>
-          <div class="meta">${esc(p.album)} · ${Gala.timeAgo(p.createdAt)}</div>
+          <div class="meta">${esc(p.album)} · ${Gala.timeAgo(p.createdAt)}${p.downloads ? ` · ⬇ ${p.downloads}` : ''}</div>
           <div class="acts" style="grid-template-columns:1fr"><button class="btn btn-danger" data-act="delete">✕ Supprimer</button></div>
         </div>`).join('');
       $('#empty').hidden = all.length > 0;
@@ -145,6 +148,10 @@
       try {
         const data = await Gala.api('/api/admin/photos', { role: ROLE });
         const s = data.stats;
+        $('#sVisits').textContent = s.visits ?? 0;
+        $('#sVisitors').textContent = s.visitors ?? 0;
+        $('#sDl').textContent = s.downloads ?? 0;
+        $('#sDl').title = `dont ${s.zips ?? 0} téléchargement(s) groupé(s) en ZIP`;
         $('#sPhotos').textContent = s.photos;
         $('#sFaces').textContent = s.faces;
         $('#sNoFace').textContent = s.noFace;

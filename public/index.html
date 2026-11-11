@@ -110,6 +110,7 @@
   (async () => {
     const { $, esc } = Gala;
     const cfg = await Gala.loadConfig();
+    Gala.track('visit', { device: Gala.deviceId() });
     $('#galleryLink').hidden = !cfg.publicGallery;
     Gala.startBackground(cfg.backgrounds);
     Gala.renderCountdown('#countdown', cfg.schedule);

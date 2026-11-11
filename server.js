@@ -117,7 +117,21 @@ function listBackgrounds() {
 }
 const BACKGROUNDS = listBackgrounds();
 let version = 0;
-const stats = { searches: 0, searchesWithResults: 0 };
+// Statistiques gardées dans le stockage (elles survivent aux redémarrages de Render).
+const freshStats = () => ({ visits: 0, visitors: [], searches: 0, searchesWithResults: 0, downloads: 0, zips: 0, perPhoto: {} });
+let stats = freshStats();
+let statsTimer = null, statsSaving = Promise.resolve();
+function saveStats(now) {
+  clearTimeout(statsTimer);
+  const run = () => { statsSaving = statsSaving.then(() => storage.saveState('stats', stats)).catch(e => console.error('Statistiques :', e.message)); return statsSaving; };
+  if (now) return run();
+  statsTimer = setTimeout(run, 5000);
+}
+const countDownload = (id, n = 1) => {
+  stats.downloads += n;
+  if (id) stats.perPhoto[id] = (stats.perPhoto[id] || 0) + 1;
+  saveStats();
+};
 const bump = () => { version += 1; };
 
 // Une entrée de "faces" est { d: empreinte, b: [x, y, l, h] } (ou une simple empreinte, ancien format).
@@ -364,6 +378,7 @@ app.post('/api/search', searchLimit, (req, res) => {
   }
   stats.searches += 1;
   if (results.length) stats.searchesWithResults += 1;
+  saveStats();
   res.set('Cache-Control', 'no-store');
   res.json({
     count: results.length,
@@ -372,6 +387,23 @@ app.post('/api/search', searchLimit, (req, res) => {
     items: results.slice(0, 500).map(r => ({ ...publicView(r.p), notMe: r.i >= 0 ? signedKey(faceKey(r.p.id, r.i)) : null })),
     candidates: proposals,
   });
+});
+
+// Mesure d'audience : visites de la page invité et téléchargements photo par photo.
+// L'appareil est identifié par un numéro aléatoire gardé dans son navigateur (rien de personnel).
+const trackLimit = limiter(120, 15 * 60 * 1000, 'Trop de requêtes.');
+app.post('/api/track', trackLimit, (req, res) => {
+  const { t, id, device } = req.body || {};
+  if (t === 'visit') {
+    stats.visits += 1;
+    const dev = typeof device === 'string' && /^[a-z0-9]{8,40}$/i.test(device)
+      ? crypto.createHash('sha256').update(device).digest('hex').slice(0, 12) : null;
+    if (dev && stats.visitors.length < 50000 && !stats.visitors.includes(dev)) stats.visitors.push(dev);
+    saveStats();
+  } else if (t === 'download' && typeof id === 'string' && photos.has(id)) {
+    countDownload(id);
+  } else return res.status(400).end();
+  res.status(204).end();
 });
 
 // Téléchargement groupé en ZIP
@@ -405,7 +437,11 @@ app.get('/api/zip', zipLimit, async (req, res) => {
       console.error('ZIP, photo ignorée :', id, e.message);
     }
   }
-  if (!aborted) zip.finalize();
+  if (!aborted) {
+    zip.finalize();
+    stats.zips += 1;
+    for (const id of ids) countDownload(id);
+  }
   } catch (e) {
     console.error('ZIP :', e.message);
     if (!res.headersSent) res.status(500).json({ error: 'Téléchargement impossible.' }); else res.destroy();
@@ -469,13 +505,17 @@ app.get('/api/admin/photos', requireRole('admin'), (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({
     version,
-    items: all.map(p => ({ ...publicView(p), faceCount: p.vectors.length })),
+    items: all.map(p => ({ ...publicView(p), faceCount: p.vectors.length, downloads: stats.perPhoto[p.id] || 0 })),
     stats: {
       photos: all.length,
       faces: all.reduce((s, p) => s + p.vectors.length, 0),
       noFace: all.filter(p => !p.vectors.length).length,
       searches: stats.searches,
       searchesWithResults: stats.searchesWithResults,
+      visits: stats.visits,
+      visitors: stats.visitors.length,
+      downloads: stats.downloads,
+      zips: stats.zips,
       threshold: CONFIG.matchThreshold,
       candidateMargin: CONFIG.candidateMargin,
     },
@@ -678,7 +718,7 @@ process.on('unhandledRejection', e => console.error('Erreur non gérée :', e &&
 // Render arrête le serveur à chaque redéploiement : on enregistre les votes avant de quitter
 for (const sig of ['SIGTERM', 'SIGINT']) {
   process.on(sig, async () => {
-    try { await Promise.race([votes.flush(), new Promise(r => setTimeout(r, 8000))]); } catch {}
+    try { await Promise.race([Promise.all([votes.flush(), saveStats(true)]), new Promise(r => setTimeout(r, 8000))]); } catch {}
     process.exit(0);
   });
 }
@@ -690,6 +730,7 @@ for (const sig of ['SIGTERM', 'SIGINT']) {
       items.forEach(addToIndex);
       partners = (await storage.listPartners()).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
       await votes.load();
+      try { const saved = await storage.loadState('stats'); if (saved) stats = { ...freshStats(), ...saved }; } catch (e) { console.error('Statistiques non chargées :', e.message); }
       break;
     } catch (e) {
       console.error(`Chargement de l’index impossible (tentative ${attempt}) :`, e.message || e);
