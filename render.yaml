@@ -9,6 +9,8 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
+      - key: NODE_ENV
+        value: production
       - key: EVENT_NAME
         value: Éclat des Émeraudes
       - key: EVENT_SUBTITLE

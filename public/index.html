@@ -293,7 +293,8 @@
       const left = b[0] * W + (b[2] * W) / 2 - side / 2;
       const top = b[1] * H + (b[3] * H) / 2 - side / 2;
       const k = S / side;
-      return `background-image:url("${photo.thumb}");background-size:${W * k}px ${H * k}px;background-position:${-left * k}px ${-top * k}px`;
+      const src = String(photo.thumb || '').replace(/["'()\\<>]/g, encodeURIComponent);
+      return `background-image:url("${src}");background-size:${W * k}px ${H * k}px;background-position:${-left * k}px ${-top * k}px`;
     }
 
     function renderAsk(cands) {

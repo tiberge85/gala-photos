@@ -50,7 +50,10 @@ const CONFIG = {
   albums: env('ALBUMS', 'Accueil,Cérémonie,Soirée').split(',').map(s => s.trim()).filter(Boolean),
   adminPassword: env('ADMIN_PASSWORD', env('MODERATOR_PASSWORD', 'admin')),
   photographerPassword: env('PHOTOGRAPHER_PASSWORD', 'photographe'),
-  secret: env('APP_SECRET', 'change-moi-' + env('ADMIN_PASSWORD', env('MODERATOR_PASSWORD', ''))),
+  // Sans APP_SECRET : secret aléatoire à chaque démarrage (les sessions sont alors perdues au redémarrage).
+  secret: (process.env.APP_SECRET && process.env.APP_SECRET !== 'une-longue-chaine-aleatoire')
+    ? process.env.APP_SECRET : crypto.randomBytes(32).toString('hex'),
+  tokenHours: Number(env('TOKEN_HOURS', 72)),
   publicGallery: env('PUBLIC_GALLERY', 'true') !== 'false',
   // Votes des nominations : désactivés par défaut (VOTES_ENABLED=true pour les réactiver)
   votesEnabled: env('VOTES_ENABLED', 'false') === 'true',
@@ -155,22 +158,34 @@ function validFace(f) {
 /* ------------------------------------------------------------------ */
 /* Authentification simple par rôle                                    */
 /* ------------------------------------------------------------------ */
-const ROLES = {
+const ROLES = Object.assign(Object.create(null), {
   admin: () => CONFIG.adminPassword,
   photographer: () => CONFIG.photographerPassword,
-};
-const tokenFor = role =>
-  role + '.' + crypto.createHmac('sha256', CONFIG.secret).update(role + ':' + ROLES[role]()).digest('hex').slice(0, 40);
+});
+const isRole = r => typeof r === 'string' && Object.prototype.hasOwnProperty.call(ROLES, r);
 
-function safeEqual(a, b) {
-  const x = Buffer.from(String(a)); const y = Buffer.from(String(b));
-  return x.length === y.length && crypto.timingSafeEqual(x, y);
-}
+// Mots de passe connus de tous (valeurs par défaut du code ou de .env.example) :
+// la connexion à ce rôle est refusée tant qu'un vrai mot de passe n'est pas défini.
+const WEAK_PASSWORDS = new Set(['', 'admin', 'photographe', 'choisir-un-mot-de-passe-fort', 'choisir-un-autre-mot-de-passe']);
+const roleLocked = role => WEAK_PASSWORDS.has(String(ROLES[role]()));
+
+// Jeton : rôle.expiration.signature — expire après TOKEN_HOURS et devient invalide si le mot de passe change.
+const sign = (role, exp) =>
+  crypto.createHmac('sha256', CONFIG.secret).update(`${role}:${exp}:${ROLES[role]()}`).digest('hex');
+const tokenFor = role => {
+  const exp = Date.now() + CONFIG.tokenHours * 3600 * 1000;
+  return `${role}.${exp}.${sign(role, exp)}`;
+};
+
+// Comparaison à temps constant, sans révéler la longueur
+const sha = s => crypto.createHash('sha256').update(String(s)).digest();
+const safeEqual = (a, b) => crypto.timingSafeEqual(sha(a), sha(b));
+
 function roleFromReq(req) {
-  const t = req.get('x-auth-token') || '';
-  const role = t.split('.')[0];
-  if (!ROLES[role]) return null;
-  return safeEqual(t, tokenFor(role)) ? role : null;
+  const [role, exp, sig] = String(req.get('x-auth-token') || '').split('.');
+  if (!isRole(role) || roleLocked(role) || !sig) return null;
+  if (!(Number(exp) > Date.now())) return null;
+  return safeEqual(sig, sign(role, Number(exp))) ? role : null;
 }
 const requireRole = (...allowed) => (req, res, next) => {
   const role = roleFromReq(req);
@@ -182,24 +197,39 @@ const requireRole = (...allowed) => (req, res, next) => {
 /* ------------------------------------------------------------------ */
 /* Limitation du nombre de recherches par appareil                     */
 /* ------------------------------------------------------------------ */
-function limiter(max, windowMs) {
+// Clé de limitation : l'adresse IPv4, ou le préfixe /64 en IPv6 (sinon une seule box a des milliards d'adresses)
+const clientKey = req => {
+  const ip = String(req.ip || '');
+  return ip.includes(':') && !ip.startsWith('::ffff:') ? ip.split(':').slice(0, 4).join(':') : ip;
+};
+function limiter(max, windowMs, message = 'Trop de recherches en peu de temps. Réessayez dans quelques minutes.') {
   const hits = new Map();
   setInterval(() => {
     const now = Date.now();
     for (const [k, v] of hits) if (!v.some(t => now - t < windowMs)) hits.delete(k);
   }, 5 * 60 * 1000).unref();
-  return (req, res, next) => {
-    const now = Date.now();
-    const list = (hits.get(req.ip) || []).filter(t => now - t < windowMs);
-    if (list.length >= max) return res.status(429).json({ error: 'Trop de recherches en peu de temps. Réessayez dans quelques minutes.' });
-    list.push(now);
-    hits.set(req.ip, list);
+  const blocked = req => (hits.get(clientKey(req)) || []).filter(t => Date.now() - t < windowMs).length >= max;
+  const record = req => {
+    if (hits.size > 100000) hits.clear(); // garde-fou mémoire
+    const k = clientKey(req);
+    const list = (hits.get(k) || []).filter(t => Date.now() - t < windowMs);
+    list.push(Date.now());
+    hits.set(k, list);
+  };
+  const mw = (req, res, next) => {
+    if (blocked(req)) return res.status(429).json({ error: message });
+    record(req);
     next();
   };
+  mw.blocked = blocked;
+  mw.record = record;
+  return mw;
 }
 const searchLimit = limiter(CONFIG.searchesPer15Min, 15 * 60 * 1000);
 const zipLimit = limiter(20, 15 * 60 * 1000);
 const voteLimit = limiter(60, 15 * 60 * 1000);
+// Seuls les échecs de connexion sont comptés : 10 essais ratés par quart d'heure et par adresse
+const loginFails = limiter(10, 15 * 60 * 1000, 'Trop de tentatives. Réessayez dans 15 minutes.');
 
 /* ------------------------------------------------------------------ */
 /* Réception des fichiers                                              */
@@ -217,6 +247,7 @@ function detectImage(buf) {
   return null;
 }
 
+const dim = v => { const n = Math.round(Number(v)); return n >= 1 && n <= 30000 ? n : null; };
 const cleanText = (s, max) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, max);
 
 /* ------------------------------------------------------------------ */
@@ -225,6 +256,18 @@ const cleanText = (s, max) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').
 const app = express();
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
+// En-têtes de sécurité (pas de CSP bloquante : les pages ont des scripts en ligne et face-api)
+app.use((req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'same-origin',
+    'Strict-Transport-Security': 'max-age=31536000',
+    'Permissions-Policy': 'geolocation=(), microphone=()',
+    'Content-Security-Policy': "frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
+  });
+  next();
+});
 app.use(compression());
 app.use(express.json({ limit: '50kb' }));
 
@@ -267,10 +310,21 @@ app.get('/api/photos', (req, res, next) => {
 app.post('/api/search', searchLimit, (req, res) => {
   const body = req.body || {};
   if (!validDescriptor(body.descriptor)) return res.status(400).json({ error: 'Empreinte de visage invalide.' });
-  const keys = v => (Array.isArray(v) ? v.slice(0, 200).map(String) : []);
+  // Les clés « Est-ce vous ? » sont signées et liées au selfie de l'invité : on ne peut confirmer
+  // que des visages que le serveur lui a lui-même proposés (sinon on pourrait chercher n'importe qui).
+  const dHash = crypto.createHash('sha256').update(JSON.stringify(body.descriptor)).digest('hex');
+  const proposalSig = key => crypto.createHmac('sha256', CONFIG.secret).update(`${key}#${dHash}`).digest('hex').slice(0, 24);
+  const signedKey = key => `${key}~${proposalSig(key)}`;
+  const verifiedKey = s => {
+    const cut = s.lastIndexOf('~');
+    if (cut < 0) return null;
+    const key = s.slice(0, cut);
+    return safeEqual(s.slice(cut + 1), proposalSig(key)) ? key : null;
+  };
+  const keys = v => (Array.isArray(v) ? v.slice(0, 200).map(String).map(verifiedKey).filter(Boolean) : []);
   const confirmed = keys(body.confirmed).map(faceFromKey).filter(Boolean);
   const rejected = new Set(keys(body.rejected));
-  const queries = [Float32Array.from(body.descriptor), ...confirmed.slice(0, 30).map(c => c.p.vectors[c.i])];
+  const queries = [Float32Array.from(body.descriptor), ...confirmed.slice(0, 15).map(c => c.p.vectors[c.i])];
   const confirmedPhotos = new Set(confirmed.map(c => c.p.id));
   const T = CONFIG.matchThreshold;
   const W = CONFIG.candidateMargin;
@@ -299,7 +353,7 @@ app.post('/api/search', searchLimit, (req, res) => {
   for (const c of candidates) {
     if (seen.has(c.p.id)) continue;
     seen.add(c.p.id);
-    proposals.push({ key: c.key, box: c.p.boxes[c.i], photo: publicView(c.p) });
+    proposals.push({ key: signedKey(c.key), box: c.p.boxes[c.i], photo: publicView(c.p) });
     if (proposals.length >= 6) break;
   }
   stats.searches += 1;
@@ -317,15 +371,20 @@ app.post('/api/search', searchLimit, (req, res) => {
 // Téléchargement groupé en ZIP
 app.get('/api/zip', zipLimit, async (req, res) => {
   try {
-  const ids = String(req.query.ids || '').split(',').filter(id => photos.has(id)).slice(0, 300);
+  // Sans doublons (sinon une même photo répétée 300 fois ferait télécharger des gigaoctets)
+  const ids = [...new Set(String(req.query.ids || '').split(','))].filter(id => photos.has(id)).slice(0, 300);
   if (!ids.length) return res.status(400).json({ error: 'Aucune photo à télécharger.' });
   const slug = CONFIG.eventSlug;
   res.attachment(`${slug}-mes-photos.zip`);
   const zip = new ZipArchive({ store: true });
   zip.on('error', err => { console.error('ZIP :', err.message); res.destroy(err); });
+  // Le client a fermé la connexion : on arrête de récupérer les photos
+  let aborted = false;
+  res.on('close', () => { if (!res.writableFinished) { aborted = true; zip.abort(); } });
   zip.pipe(res);
   let n = 0;
   for (const id of ids) {
+    if (aborted) break;
     const it = photos.get(id);
     if (!it) continue;
     try {
@@ -340,7 +399,7 @@ app.get('/api/zip', zipLimit, async (req, res) => {
       console.error('ZIP, photo ignorée :', id, e.message);
     }
   }
-  zip.finalize();
+  if (!aborted) zip.finalize();
   } catch (e) {
     console.error('ZIP :', e.message);
     if (!res.headersSent) res.status(500).json({ error: 'Téléchargement impossible.' }); else res.destroy();
@@ -350,10 +409,16 @@ app.get('/api/zip', zipLimit, async (req, res) => {
 // Connexion admin / photographe
 app.post('/api/login', (req, res) => {
   const { role, password } = req.body || {};
-  if (!ROLES[role]) return res.status(400).json({ error: 'Rôle inconnu.' });
-  const ok = safeEqual(password || '', ROLES[role]())
-    || (role === 'photographer' && safeEqual(password || '', CONFIG.adminPassword));
-  if (!ok) return res.status(401).json({ error: 'Mot de passe incorrect.' });
+  if (!isRole(role)) return res.status(400).json({ error: 'Rôle inconnu.' });
+  if (loginFails.blocked(req)) return res.status(429).json({ error: 'Trop de tentatives. Réessayez dans 15 minutes.' });
+  if (roleLocked(role)) {
+    console.error(`Connexion « ${role} » refusée : mot de passe par défaut ou absent. Définissez-le sur Render.`);
+    return res.status(503).json({ error: 'Accès désactivé : le mot de passe n’a pas été configuré sur le serveur.' });
+  }
+  const pwd = typeof password === 'string' ? password : '';
+  const ok = safeEqual(pwd, ROLES[role]())
+    || (role === 'photographer' && !roleLocked('admin') && safeEqual(pwd, CONFIG.adminPassword));
+  if (!ok) { loginFails.record(req); return res.status(401).json({ error: 'Mot de passe incorrect.' }); }
   res.json({ token: tokenFor(role), role });
 });
 
@@ -377,8 +442,8 @@ app.post('/api/photographer/upload', requireRole('photographer', 'admin'), (req,
     faces = faces.map(f => (Array.isArray(f) ? { d: f.map(r5), b: null } : { d: f.d.map(r5), b: f.b.map(r5) }));
     const meta = {
       album: cleanText(req.body.album, 40) || 'Photographe',
-      width: Number(req.body.width) || null,
-      height: Number(req.body.height) || null,
+      width: dim(req.body.width),
+      height: dim(req.body.height),
     };
     try {
       const item = await storage.save({ buffer: req.file.buffer, mimetype, meta, faces });
@@ -550,11 +615,15 @@ app.post('/api/admin/votes/nominee', requireRole('admin'), (req, res) => {
 app.get('/api/qr.svg', async (req, res) => {
   const base = CONFIG.publicUrl || `${req.protocol}://${req.get('host')}`;
   const p = String(req.query.path || '/');
-  const target = /^\/[a-z0-9\-_/]*$/i.test(p) ? base + p : base + '/';
-  const svg = await QRCode.toString(target, {
-    type: 'svg', errorCorrectionLevel: 'M', margin: 1, color: { dark: '#000000', light: '#00000000' },
-  });
-  res.type('image/svg+xml').set('Cache-Control', 'public, max-age=300').send(svg);
+  const target = p.length <= 100 && /^\/[a-z0-9\-_/]*$/i.test(p) ? base + p : base + '/';
+  try {
+    const svg = await QRCode.toString(target, {
+      type: 'svg', errorCorrectionLevel: 'M', margin: 1, color: { dark: '#000000', light: '#00000000' },
+    });
+    res.type('image/svg+xml').set('Cache-Control', 'public, max-age=300').send(svg);
+  } catch {
+    res.status(400).json({ error: 'QR code impossible.' });
+  }
 });
 
 // Bibliothèque de reconnaissance faciale et ses modèles (servis par notre propre serveur)
@@ -587,6 +656,14 @@ app.get('/moderation', (req, res) => res.redirect('/admin'));
 // CSS, JS et images : le navigateur revérifie à chaque visite (ETag), pour toujours avoir la dernière version
 app.use(express.static(pub, { maxAge: 0 }));
 app.use((req, res) => res.status(404).sendFile(path.join(pub, 'index.html')));
+// Erreurs (JSON malformé, corps trop gros…) : message court, jamais de trace technique
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  const status = err.status || err.statusCode || 500;
+  if (status >= 500) console.error('Erreur :', err.message || err);
+  if (res.headersSent) return res.destroy();
+  res.status(status).json({ error: status === 413 ? 'Requête trop volumineuse.' : 'Requête invalide.' });
+});
 
 /* ------------------------------------------------------------------ */
 /* Démarrage                                                           */
@@ -619,6 +696,9 @@ for (const sig of ['SIGTERM', 'SIGINT']) {
     const faces = [...photos.values()].reduce((s, p) => s + p.vectors.length, 0);
     console.log(`${CONFIG.eventName} — ${photos.size} photo(s), ${faces} visage(s) — stockage : ${storage.kind}`);
     console.log(`Prêt sur http://localhost:${CONFIG.port}`);
-    if (CONFIG.adminPassword === 'admin') console.warn('⚠ Mot de passe admin par défaut : définissez ADMIN_PASSWORD.');
+    for (const role of ['admin', 'photographer']) {
+      if (roleLocked(role)) console.warn(`⚠ Connexion « ${role} » désactivée : mot de passe par défaut ou absent.`);
+    }
+    if (!process.env.APP_SECRET) console.warn('⚠ APP_SECRET absent : les connexions seront perdues à chaque redémarrage.');
   });
 })();

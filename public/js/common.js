@@ -220,6 +220,8 @@
     let data = {};
     try { data = await r.json(); } catch {}
     if (!r.ok) {
+      // Session expirée ou mot de passe changé : on réaffiche le formulaire de connexion
+      if (r.status === 401 && role && G.token(role)) { G.setToken(role, ''); location.reload(); }
       const err = new Error(data.error || `Erreur ${r.status}`);
       err.status = r.status;
       throw err;
