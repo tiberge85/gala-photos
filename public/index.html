@@ -348,7 +348,25 @@
 
     $('#grid').addEventListener('click', e => {
       const t = e.target.closest('.tile'); if (!t) return;
-      Gala.lightbox(items, Number(t.dataset.i));
+      Gala.lightbox(items, Number(t.dataset.i), {
+        extraButtons(bar, it, close) {
+          let b = bar.querySelector('.lb-notme');
+          if (!it.notMe) { if (b) b.remove(); return; }
+          if (!b) {
+            b = document.createElement('button');
+            b.className = 'btn btn-ghost lb-notme';
+            b.textContent = 'Ce n’est pas moi';
+            bar.insertBefore(b, bar.querySelector('.lb-close'));
+          }
+          b.onclick = () => {
+            rejected.push(it.notMe); save();
+            items = items.filter(x => x.id !== it.id);
+            renderGrid(); close();
+            Gala.toast('Photo retirée de votre album.');
+            search(true);
+          };
+        },
+      });
     });
     $('#again').onclick = () => search();
     $('#myVotes').onclick = async () => { $('#grid').hidden = true; await runVotes(true); $('#grid').hidden = false; search(); };

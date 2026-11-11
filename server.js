@@ -59,7 +59,7 @@ const CONFIG = {
   votesEnabled: env('VOTES_ENABLED', 'false') === 'true',
   // Distance maximale entre deux empreintes pour considérer que c'est la même personne.
   // Plus petit = plus strict (moins de fausses photos, mais risque d'en manquer).
-  matchThreshold: Number(env('FACE_MATCH_THRESHOLD', 0.5)),
+  matchThreshold: Number(env('FACE_MATCH_THRESHOLD', 0.4)),
   // Visages un peu au-delà du seuil : proposés à l'invité (« Est-ce vous ? »).
   candidateMargin: Number(env('FACE_CANDIDATE_MARGIN', 0.1)),
   // Marque de la plateforme (MEDIART) et contacts commerciaux
@@ -332,20 +332,26 @@ app.post('/api/search', searchLimit, (req, res) => {
   const results = [];
   const candidates = [];
   for (const p of photos.values()) {
-    let best = Infinity;
-    const dists = p.vectors.map(v => {
+    // Les visages que l'invité a refusés (« Non » ou « Ce n'est pas moi ») ne comptent plus.
+    let best = Infinity, bestI = -1;
+    const dists = p.vectors.map((v, i) => {
+      if (rejected.has(faceKey(p.id, i))) return Infinity;
       let m = Infinity;
       for (const q of queries) { const d = distance(q, v); if (d < m) m = d; }
-      if (m < best) best = m;
+      if (m < best) { best = m; bestI = i; }
       return m;
     });
-    if (best <= T || confirmedPhotos.has(p.id)) { results.push(p); continue; }
+    if (confirmedPhotos.has(p.id)) {
+      const c = confirmed.find(x => x.p.id === p.id);
+      results.push({ p, i: c ? c.i : bestI });
+      continue;
+    }
+    if (best <= T) { results.push({ p, i: bestI }); continue; }
     dists.forEach((d, i) => {
-      const key = faceKey(p.id, i);
-      if (d <= T + W && !rejected.has(key)) candidates.push({ d, key, p, i });
+      if (d <= T + W) candidates.push({ d, key: faceKey(p.id, i), p, i });
     });
   }
-  results.sort(byNewest);
+  results.sort((a, b) => byNewest(a.p, b.p));
   candidates.sort((a, b) => a.d - b.d);
   // Un seul visage proposé par photo, 6 maximum à la fois
   const seen = new Set();
@@ -363,7 +369,7 @@ app.post('/api/search', searchLimit, (req, res) => {
     count: results.length,
     total: photos.size,
     version,
-    items: results.slice(0, 500).map(publicView),
+    items: results.slice(0, 500).map(r => ({ ...publicView(r.p), notMe: r.i >= 0 ? signedKey(faceKey(r.p.id, r.i)) : null })),
     candidates: proposals,
   });
 });

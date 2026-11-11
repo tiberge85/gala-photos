@@ -30,7 +30,7 @@ services:
       - key: VOTES_ENABLED
         value: "false"
       - key: FACE_MATCH_THRESHOLD
-        value: "0.5"
+        value: "0.4"
       - key: PUBLIC_URL
         value: "https://gala-photos.onrender.com"
       - key: CLOUDINARY_URL

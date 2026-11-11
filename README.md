@@ -64,7 +64,7 @@ Prends l'offre **Starter** de Render : l'offre gratuite se met en veille et le p
 
 ## Le soir du gala
 
-- **Avant** : fais une répétition avec 10 à 20 personnes. Envoie leurs photos depuis `/photographe`, laisse-les faire leur selfie, puis regarde le taux « ont trouvé des photos » dans `/admin`. Si trop de photos manquent, monte `FACE_MATCH_THRESHOLD` à 0,52 ; si des inconnus apparaissent, descends-le à 0,48.
+- **Avant** : fais une répétition avec 10 à 20 personnes. Envoie leurs photos depuis `/photographe`, laisse-les faire leur selfie, puis regarde le taux « ont trouvé des photos » dans `/admin`. Le seuil par défaut est 0,40 : en dessous, la photo est ajoutée d'office ; entre 0,40 et 0,50, l'invité voit « Est-ce vous ? ». Si des inconnus apparaissent, descends `FACE_MATCH_THRESHOLD` à 0,38 ; si on vous pose trop de questions, monte-le à 0,42. L'invité peut aussi retirer une photo avec « Ce n'est pas moi ».
 - **Photographe** : Chrome sur un ordinateur portable, page ouverte pendant l'envoi. Compte 1 à 3 secondes d'analyse par photo, avec envois en parallèle. Il peut déverser sa carte mémoire au fil de la soirée.
 - **Invités** : les photos arrivent au fil de l'eau, et la page relance la recherche toute seule (chaque minute, et à chaque retour sur la page).
 - **Après l'événement** : récupère le dossier `gala/gala-ebpa` depuis la Media Library de Cloudinary. Pour respecter la vie privée, supprime ensuite les empreintes (dossier `faces`) quand le service n'est plus utile.
