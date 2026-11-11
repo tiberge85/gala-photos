@@ -342,3 +342,19 @@ select option { color: #111; }
 .mediart-promo .mp-more { display: inline-block; margin-top: 14px; color: #ff8a80; font-size: 14px; text-decoration: none; }
 .btn-wa { background: #25D366; color: #06210f; }
 .btn-red { background: var(--mediart-red); color: #fff; }
+
+/* Compte à rebours */
+.countdown { margin: 0 auto 16px; padding: 16px; border-radius: var(--radius); text-align: center;
+  background: rgba(10, 47, 37, .82); border: 1px solid var(--line); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.countdown .cd-badge { display: inline-block; background: var(--accent); color: #062a20; font-weight: 800; letter-spacing: .08em; padding: 4px 12px; border-radius: 999px; font-size: 14px; }
+.countdown .cd-title { font-family: var(--serif); color: var(--accent-light); font-size: 20px; text-wrap: balance; margin-top: 8px; line-height: 1.2; }
+.countdown .cd-sub { color: var(--muted); font-size: 13px; margin-top: 2px; text-transform: none; }
+.countdown .cd-sub::first-letter { text-transform: uppercase; }
+.countdown .cd-grid { display: flex; justify-content: center; gap: 10px; margin-top: 12px; }
+.countdown .cd-grid div { min-width: 62px; padding: 8px 6px; border-radius: 12px; background: rgba(0, 0, 0, .28); border: 1px solid var(--line); }
+.countdown .cd-grid b { display: block; font-family: var(--sans); font-weight: 800; font-size: 28px; color: #fff; line-height: 1; font-variant-numeric: tabular-nums; }
+.countdown .cd-grid span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.countdown .cd-live { display: inline-flex; align-items: center; gap: 8px; color: #fff; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+  background: #c62828; padding: 5px 14px; border-radius: 999px; font-size: 14px; }
+.countdown .cd-dot { width: 9px; height: 9px; border-radius: 50%; background: #fff; animation: cdblink 1.2s infinite; }
+@keyframes cdblink { 50% { opacity: .2; } }

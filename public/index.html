@@ -36,6 +36,7 @@
   </header>
 
   <main class="narrow">
+    <section id="countdown" class="countdown" hidden></section>
     <!-- Étape 1 : selfie -->
     <section id="start" class="card">
       <div class="steps3">
@@ -111,6 +112,7 @@
     const cfg = await Gala.loadConfig();
     $('#galleryLink').hidden = !cfg.publicGallery;
     Gala.startBackground(cfg.backgrounds);
+    Gala.renderCountdown('#countdown', cfg.schedule);
     Gala.renderProgramme('#programme', cfg.backgrounds);
     Gala.renderPartners('#partners');
     const KEY = 'gala_face_' + location.host;

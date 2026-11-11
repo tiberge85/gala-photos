@@ -34,6 +34,57 @@
     return c;
   };
 
+  /* ---------- Compte à rebours (J-…) ---------- */
+  G.renderCountdown = function (el, schedule) {
+    el = typeof el === 'string' ? G.$(el) : el;
+    const items = (schedule || []).map(s => ({ ...s, s: new Date(s.start).getTime(), e: new Date(s.end || s.start).getTime() }))
+      .filter(s => !isNaN(s.s)).sort((a, b) => a.s - b.s);
+    if (!el || !items.length) return;
+    const pad = n => String(n).padStart(2, '0');
+    const fmtDate = t => new Date(t).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Abidjan' }).replace(':', 'h');
+    const dayKey = t => new Date(t).toLocaleDateString('fr-CA', { timeZone: 'Africa/Abidjan' });
+    let lastHtmlKey = '';
+    function tick() {
+      const now = Date.now();
+      const live = items.find(x => now >= x.s && now < x.e);
+      const next = items.find(x => now < x.s);
+      let key, html;
+      if (live) {
+        key = 'live' + live.s;
+        html = `<div class="cd-live"><span class="cd-dot"></span>En direct</div>
+          <div class="cd-title">${G.esc(live.title)}</div>
+          <div class="cd-sub">Les photos arrivent au fil de l’événement : faites votre selfie !</div>`;
+      } else if (next) {
+        const diff = next.s - now;
+        const d = Math.floor(diff / 864e5), h = Math.floor(diff / 36e5) % 24, m = Math.floor(diff / 6e4) % 60, s = Math.floor(diff / 1e3) % 60;
+        const today = dayKey(now) === dayKey(next.s);
+        const jDays = Math.round((new Date(dayKey(next.s)) - new Date(dayKey(now))) / 864e5);
+        const badge = today ? 'C’est aujourd’hui !' : `J-${jDays}`;
+        key = 'next' + next.s;
+        html = `<div class="cd-badge">${badge}</div>
+          <div class="cd-title">${G.esc(next.title)}</div>
+          <div class="cd-sub">${G.esc(fmtDate(next.s))}</div>
+          <div class="cd-grid">
+            ${d ? `<div><b>${d}</b><span>jour${d > 1 ? 's' : ''}</span></div>` : ''}
+            <div><b>${pad(h)}</b><span>heures</span></div>
+            <div><b>${pad(m)}</b><span>min</span></div>
+            <div><b>${pad(s)}</b><span>sec</span></div>
+          </div>`;
+      } else {
+        el.hidden = true; return;
+      }
+      el.hidden = false;
+      if (key === lastHtmlKey && el.querySelector('.cd-grid')) {
+        // mise à jour des chiffres seulement (pas de clignotement)
+        const tmp = document.createElement('div'); tmp.innerHTML = html;
+        el.querySelector('.cd-grid').innerHTML = tmp.querySelector('.cd-grid').innerHTML;
+        el.querySelector('.cd-badge').textContent = tmp.querySelector('.cd-badge').textContent;
+      } else { el.innerHTML = html; lastHtmlKey = key; }
+    }
+    tick();
+    setInterval(tick, 1000);
+  };
+
   /* ---------- Marque MEDIART ---------- */
   const fmtPhone = n => {
     const d = String(n || '').replace(/[^\d]/g, '');

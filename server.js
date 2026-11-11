@@ -70,6 +70,15 @@ const CONFIG = {
     facebook: env('BRAND_FACEBOOK', 'https://www.facebook.com/mediartt/'),
     logo: env('BRAND_LOGO_URL', ''),
   },
+  // Programme pour le compte à rebours (heures d'Abidjan = UTC). Modifiable via EVENT_SCHEDULE (JSON).
+  schedule: (() => {
+    try { if (process.env.EVENT_SCHEDULE) return JSON.parse(process.env.EVENT_SCHEDULE); } catch (e) { console.error('EVENT_SCHEDULE invalide :', e.message); }
+    return [
+      { title: 'Soirée gala «\u00a0Éclat des Émeraudes\u00a0»', start: '2026-11-13T19:00:00Z', end: '2026-11-14T02:00:00Z', main: true },
+      { title: 'Après-midi Détente', start: '2026-11-14T14:00:00Z', end: '2026-11-14T19:00:00Z' },
+      { title: 'Culte aux couleurs de la jeunesse', start: '2026-11-15T09:00:00Z', end: '2026-11-15T13:00:00Z' },
+    ];
+  })(),
   primaryColor: env('PRIMARY_COLOR', '#0d5c46'),
   accentColor: env('ACCENT_COLOR', '#D4AF37'),
   maxUploadMb: Number(env('MAX_UPLOAD_MB', 12)),
@@ -235,6 +244,7 @@ app.get('/api/config', (req, res) => {
     accentColor: CONFIG.accentColor,
     publicUrl: CONFIG.publicUrl || `${req.protocol}://${req.get('host')}`,
     brand: CONFIG.brand,
+    schedule: CONFIG.schedule,
     photoCount: photos.size,
     storage: storage.kind,
   });
