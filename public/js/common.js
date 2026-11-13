@@ -371,9 +371,20 @@
     const shareBtn = el.querySelector('.lb-share');
     if (navigator.share) shareBtn.hidden = false;
 
+    // Affiche tout de suite la miniature (déjà chargée dans la grille), puis la grande image dès
+    // qu'elle est prête : on voit immédiatement que la photo a changé, même sur un réseau lent.
+    const preload = n => { const it = items[n]; if (it && it.url) { const p = new Image(); p.src = it.url; } };
     function render() {
       const it = items[i];
-      img.src = it.url;
+      el.classList.add('loading');
+      img.src = it.thumb || it.url;
+      if (it.thumb && it.thumb !== it.url) {
+        const full = new Image();
+        full.onload = () => { if (items[i] === it) { img.src = it.url; el.classList.remove('loading'); } };
+        full.onerror = () => { if (items[i] === it) el.classList.remove('loading'); };
+        full.src = it.url;
+      } else img.onload = () => el.classList.remove('loading');
+      preload(i + 1); preload(i - 1);
       el.querySelector('.lb-dl').href = it.download;
       el.querySelector('.lb-meta').textContent = [it.album, `${i + 1} / ${items.length}`].filter(Boolean).join(' · ');
       el.querySelector('.lb-prev').hidden = i === 0;

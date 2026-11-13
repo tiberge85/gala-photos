@@ -191,9 +191,12 @@ select option { color: #111; }
 .lightbox .lb-bar { display: flex; gap: 8px; padding: 12px; justify-content: center; flex-wrap: wrap; }
 .lightbox .lb-meta { text-align: center; color: var(--muted); font-size: 13px; padding: 0 12px; }
 .lb-nav {
-  position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255, 255, 255, .1);
-  border: 0; color: #fff; width: 46px; height: 46px; border-radius: 50%; font-size: 22px; cursor: pointer;
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; background: rgba(0, 0, 0, .55);
+  border: 1px solid rgba(255, 255, 255, .35); color: #fff; width: 52px; height: 52px; border-radius: 50%;
+  font-size: 28px; line-height: 1; cursor: pointer; touch-action: manipulation;
 }
+.lb-nav[hidden] { display: none; }
+.lightbox.loading .lb-meta::after { content: ' · chargement…'; }
 .lb-prev { left: 10px; } .lb-next { right: 10px; }
 
 /* Modération */
